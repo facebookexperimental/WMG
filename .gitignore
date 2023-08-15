@@ -130,4 +130,4 @@ dist
 .pnp.*
 
 # custom
-.aws-sam
+.aws-sam/
