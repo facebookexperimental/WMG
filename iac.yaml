@@ -1,0 +1,122 @@
+# Copyright (c) Facebook, Inc. and its affiliates.
+#
+# This source code is licensed under the MIT license found in the
+# LICENSE file in the root directory of this source tree.
+
+#---
+AWSTemplateFormatVersion: 2010-09-09
+Transform: AWS::Serverless-2016-10-31
+Description: WAMG bla, bla, bla
+
+# Ref.: https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/what-is-sam.html
+# Ref.: https://github.com/aws/aws-sam-cli-app-templates
+#---
+# SAM CLI (examples)
+# sam validate -t iac.yaml --lint
+#
+# sam init --runtime nodejs18.x
+# sam init --runtime nodejs18.x --app-template quick-start-sqs --name prjLambda2
+#
+# sam build -t iac.yaml
+# sam deploy -g --stack-name bizeng-latam-wamg-stk
+# sam logs -n MyAWSomeLambda --stack-name bizeng-latam-wamg-stk --tail
+#
+# aws cloudformation delete-stack --stack-name bizeng-latam-wamg-stk --region sa-east-1
+# or
+# sam delete --stack-name bizeng-latam-wamg-stk
+
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Globals:
+  Function:
+    Timeout: 3
+
+#---
+Resources:
+  # S3 to store csvs
+  MyS3Bucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: wmg-output
+
+  # 1st Lambda - from api gateway to sqs + middleman between Client and WA servers (with implicit API Gateway FOR NOW)
+  # https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-resource-function.html
+  SendMessageFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      Description: 'A Lambda function that...'
+      Runtime: nodejs18.x
+      CodeUri: prjLambda1/hello-world/
+      Handler: app.lambdaHandler
+      Architectures:
+        - x86_64
+      Events:
+        HelloWorld:
+          Type: Api # change to HttpApi?
+          Properties:
+            Path: /hello
+            Method: post
+            # ApiId: !Ref MyHttpApiGateway ==> explicit API Gateway
+
+  # SQS queue
+  # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-sqs-queues.html
+  # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-sqs-queue.html
+  SentMessageQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: "bizeng-latam-wamg-q"
+      VisibilityTimeout: 60
+      #SqsManagedSseEnabled: false
+
+  # 2nd Lambda - using SQS trigger to process message and store results in database
+  # https://github.com/aws/aws-sam-cli-app-templates/tree/master/nodejs18.x/sqs
+  # This is the Lambda function definition associated with the source code: sqs-payload-logger.js. For all available properties, see
+  # https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+  ProcessMessageFunction:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      Description: 'A Lambda function that logs the payload of messages sent to an associated SQS queue.'
+      Runtime: nodejs18.x
+      Architectures:
+        - x86_64
+      CodeUri: prjLambda2/
+      Handler: src/handlers/sqs-payload-logger.sqsPayloadLoggerHandler
+      MemorySize: 128
+      #Role: !GetAtt MyAWSomeRoleForLambda.Arn
+      Timeout: 25 # Chosen to be less than the default SQS Visibility Timeout of 30 seconds
+      Policies:
+        # Give Lambda basic execution Permission to the helloFromLambda
+        - AWSLambdaBasicExecutionRole
+      Events:
+        NewMessageOnQueue:
+          Type: SQS #https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-property-function-sqs.html
+          Properties:
+            Queue: !GetAtt SentMessageQueue.Arn
+            BatchSize: 10 #The maximum number of items to retrieve in a single batch.
+            #Enabled: false #Disables the event source mapping to pause polling and invocation.
+
+  #Permission to allow the correct display (bug?) of S3 trigger (to call) on Lambda console...
+  #https://github.com/aws/serverless-application-model/issues/300
+  #https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-lambda-permission.html
+  #MyAWSomeInvokePermission:
+  #  Type: 'AWS::Lambda::Permission'
+  #  Properties:
+  #    FunctionName: !GetAtt ProcessMessageFunction.Arn
+  #    Action: 'lambda:InvokeFunction'
+  #    Principal: 'sqs.amazonaws.com'
+  #    SourceAccount: !Sub ${AWS::AccountId}
+  #    SourceArn: !GetAtt SentMessageQueue.Arn
+
+#---
+Outputs:
+  # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
+  # Find out more about other implicit resources you can reference within SAM
+  # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
+  HelloWorldApi:
+    Description: "API Gateway endpoint URL for Prod stage for Hello World function"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/hello/"
+  SendMessageFunction:
+    Description: "Send Message Lambda Function ARN"
+    Value: !GetAtt SendMessageFunction.Arn
+  SendMessageFunctionIamRole:
+    Description: "Implicit IAM Role created for Hello World function"
+    Value: !GetAtt SendMessageFunctionRole.Arn
