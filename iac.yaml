@@ -71,14 +71,14 @@ Resources:
   # https://github.com/aws/aws-sam-cli-app-templates/tree/master/nodejs18.x/sqs
   # This is the Lambda function definition associated with the source code: sqs-payload-logger.js. For all available properties, see
   # https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
-  ProcessMessageFunction:
+  ProcessSignalsFunction:
     Type: 'AWS::Serverless::Function'
     Properties:
       Description: 'A Lambda function that logs the payload of messages sent to an associated SQS queue.'
       Runtime: nodejs18.x
       Architectures:
         - x86_64
-      CodeUri: prjLambda2/
+      CodeUri: process_signals/
       Handler: src/handlers/sqs-payload-logger.sqsPayloadLoggerHandler
       MemorySize: 128
       #Role: !GetAtt MyAWSomeRoleForLambda.Arn
@@ -116,7 +116,7 @@ Resources:
     Properties:
       Description: 'Generate output file with campaigns performance info'
       Runtime: nodejs18.x
-      CodeUri: prjLambda1/hello-world/
+      CodeUri: campaigns_performance/hello-world/
       Handler: app.lambdaHandler
       Architectures:
         - x86_64
@@ -133,7 +133,7 @@ Resources:
   #MyAWSomeInvokePermission:
   #  Type: 'AWS::Lambda::Permission'
   #  Properties:
-  #    FunctionName: !GetAtt ProcessMessageFunction.Arn
+  #    FunctionName: !GetAtt ProcessSignalsFunction.Arn
   #    Action: 'lambda:InvokeFunction'
   #    Principal: 'sqs.amazonaws.com'
   #    SourceAccount: !Sub ${AWS::AccountId}
@@ -147,9 +147,9 @@ Outputs:
   HelloWorldApi:
     Description: "API Gateway endpoint URL for Prod stage for Hello World function"
     Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/hello/"
-  SendMessageFunction:
+  RouterFunction:
     Description: "Send Message Lambda Function ARN"
-    Value: !GetAtt SendMessageFunction.Arn
-  SendMessageFunctionIamRole:
+    Value: !GetAtt RouterFunction.Arn
+  RouterFunctionIamRole:
     Description: "Implicit IAM Role created for Hello World function"
-    Value: !GetAtt SendMessageFunctionRole.Arn
+    Value: !GetAtt RouterFunctionRole.Arn
