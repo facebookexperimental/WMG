@@ -33,27 +33,27 @@ Globals:
 #---
 Resources:
   # S3 to store csvs
-  MyS3Bucket:
+  WMGOutputBucket:
     Type: 'AWS::S3::Bucket'
     Properties:
       BucketName: wmg-output
 
   # 1st Lambda - from api gateway to sqs + middleman between Client and WA servers (with implicit API Gateway FOR NOW)
   # https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-resource-function.html
-  SendMessageFunction:
+  RouterFunction:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
     Properties:
-      Description: 'A Lambda function that...'
+      Description: 'Calls WA Cloud API and enqueues task'
       Runtime: nodejs18.x
-      CodeUri: prjLambda1/hello-world/
-      Handler: app.lambdaHandler
+      CodeUri: router
+      Handler: index.lambdaHandler
       Architectures:
         - x86_64
       Events:
         HelloWorld:
           Type: Api # change to HttpApi?
           Properties:
-            Path: /hello
+            Path: /wa-cloud-api-router
             Method: post
             # ApiId: !Ref MyHttpApiGateway ==> explicit API Gateway
 
@@ -93,6 +93,39 @@ Resources:
             Queue: !GetAtt SentMessageQueue.Arn
             BatchSize: 10 #The maximum number of items to retrieve in a single batch.
             #Enabled: false #Disables the event source mapping to pause polling and invocation.
+
+  ManageKeywordsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: 'API to make CRUD operations in keywords table'
+      Runtime: nodejs18.x
+      CodeUri: manage_keywords
+      Handler: index.lambdaHandler
+      Architectures:
+        - x86_64
+      Events:
+        HelloWorld:
+          Type: Api
+          Properties:
+            Path: /keywords
+            Method: post
+            # ApiId: !Ref MyHttpApiGateway ==> explicit API Gateway
+
+  CampaignsPerformanceFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: 'Generate output file with campaigns performance info'
+      Runtime: nodejs18.x
+      CodeUri: prjLambda1/hello-world/
+      Handler: app.lambdaHandler
+      Architectures:
+        - x86_64
+      Events:
+        HelloWorld:
+          Type: Api # change to HttpApi?
+          Properties:
+            Path: /campaigns-performance
+            Method: post
 
   #Permission to allow the correct display (bug?) of S3 trigger (to call) on Lambda console...
   #https://github.com/aws/serverless-application-model/issues/300
