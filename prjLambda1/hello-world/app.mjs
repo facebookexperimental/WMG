@@ -10,28 +10,11 @@
  * @returns {Object} object - API Gateway Lambda Proxy Output Format
  *
  */
-
-// export const lambdaHandler = async (event, context) => {
-//     try {
-//         console.info('HTTP trigger fired! Biz Eng rules!');
-//         console.info(JSON.stringify(event));
-
-//         return {
-//             'statusCode': 200,
-//             'body': JSON.stringify({
-//                 message: 'hello world - biz eng rules, we will rock you!!!',
-//             })
-//         }
-//     } catch (err) {
-//         console.log(err);
-//         return err;
-//     }
-// };
-
 import AWS from 'aws-sdk';
+
 const s3 = new AWS.S3();
 
-export const handler = async (event, context) => {
+export const lambdaHandler = async (event, context) => {
     try {
         // Create CSV content
         const csvContent = "Name,Age\nJohn,30\nJane,28";
@@ -47,14 +30,22 @@ export const handler = async (event, context) => {
             Body: csvContent
         }).promise();
 
+        // Prepare response headers
+        const headers = {
+            'Content-Type': 'text/csv',
+            'Content-Disposition': `attachment; filename="${fileName}"`
+        };
+
+        // Return CSV content as response
         return {
             statusCode: 200,
-            body: JSON.stringify({ message: 'CSV file created and uploaded successfully' })
+            headers: headers,
+            body: csvContent
         };
     } catch (error) {
         return {
             statusCode: 500,
-            body: JSON.stringify({ message: 'Error creating or uploading CSV file', error: error.message })
+            body: JSON.stringify({ message: 'Error creating, uploading, or downloading CSV file', error: error.message })
         };
     }
 };
