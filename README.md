@@ -12,7 +12,7 @@ Requirements:
 
 ## Utilities
 
-- To update expired AWS credentials: `sh update_AWS_credentials.sh`
+- To update expired AWS credentials (make sure you are using VPN): `sh update_AWS_credentials.sh`
 - To have aliases for some sam commands, run the following:
 ```
 git config --local alias.build '!sam build -t iac.yaml'
