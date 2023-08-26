@@ -36,7 +36,11 @@ Resources:
   WMGOutputBucket:
     Type: 'AWS::S3::Bucket'
     Properties:
-      BucketName: wmg-output
+      BucketName:
+        Fn::Join:
+          - "-"
+          - - !Ref "AWS::StackName"
+            - "wmg-output"
 
   # 1st Lambda - from api gateway to sqs + middleman between Client and WA servers (with implicit API Gateway FOR NOW)
   # https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-resource-function.html
@@ -49,6 +53,14 @@ Resources:
       Handler: index.lambdaHandler
       Architectures:
         - x86_64
+      Environment:
+        Variables:
+          QUEUE_URL: !Ref SentMessageQueue # https://stackoverflow.com/questions/48551094/aws-get-sqs-url-in-sam-template-yml-file
+      # TODO: this policy was not enough to allow SQS writing
+      # Policies:
+      #      # Permissions for the Lambda function to send messages to the SQS queue
+      #       - SQSSendMessagePolicy:
+      #           QueueName: !GetAtt SentMessageQueue.QueueName  # Reference to the SQS queue resource
       Events:
         HelloWorld:
           Type: Api # change to HttpApi?
@@ -63,7 +75,11 @@ Resources:
   SentMessageQueue:
     Type: AWS::SQS::Queue
     Properties:
-      QueueName: "bizeng-latam-wamg-q"
+      QueueName:
+        Fn::Join:
+          - "-"
+          - - !Ref "AWS::StackName"
+            - "bizeng-latam-wamg-q"
       VisibilityTimeout: 60
       #SqsManagedSseEnabled: false
 
@@ -120,6 +136,14 @@ Resources:
       Handler: app.lambdaHandler
       Architectures:
         - x86_64
+      Environment:
+        Variables:
+          BUCKET_NAME: !Ref WMGOutputBucket # https://stackoverflow.com/questions/48551094/aws-get-sqs-url-in-sam-template-yml-file
+      # # TODO: this policy was not enough to allow S3 writing
+      # # Permissions for the Lambda function to write to an S3 bucket
+      # Policies:
+      #   - S3CrudPolicy:
+      #       BucketName: !Ref WMGOutputBucket
       Events:
         HelloWorld:
           Type: Api # change to HttpApi?

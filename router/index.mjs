@@ -10,7 +10,8 @@ export const lambdaHandler = async (event, context, callback) => {
     };
 
     console.log('incoming webhoook '+JSON.stringify(event));
-    var queueUrl = 'https://sqs.sa-east-1.amazonaws.com/361535335283/wmg-tasks';
+    const queueUrl = process.env.QUEUE_URL;
+    // var queueUrl = 'https://sqs.sa-east-1.amazonaws.com/361535335283/wmg-tasks';
     var params = {
         MessageBody: JSON.stringify(event),
         QueueUrl: queueUrl

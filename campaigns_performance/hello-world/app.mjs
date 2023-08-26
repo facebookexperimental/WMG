@@ -20,7 +20,8 @@ export const lambdaHandler = async (event, context) => {
         const csvContent = "Name,Age\nJohn,30\nJane,28";
 
         // Specify bucket name and file name
-        const bucketName = 'wmg-output';
+        const bucketName = process.env.BUCKET_NAME;
+        // const bucketName = 'wmg-output';
         const fileName = 'output_datetime.csv';
 
         // Upload CSV to S3
