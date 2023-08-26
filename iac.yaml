@@ -163,6 +163,50 @@ Resources:
   #    SourceAccount: !Sub ${AWS::AccountId}
   #    SourceArn: !GetAtt SentMessageQueue.Arn
 
+  WMGDatabaseCluster:
+    Type: "AWS::RDS::DBCluster"
+    Properties:
+      MasterUsername: admin
+      ManageMasterUserPassword: true
+      MasterUserSecret:
+        KmsKeyId: !Ref WMGKMSKey
+      DBClusterIdentifier: wmg-db-cluster
+      DatabaseName: wmgdb
+      Engine: "aurora-mysql" # TO DO: check if aurora is really the best option (https://www.percona.com/blog/when-should-i-use-amazon-aurora-and-when-should-i-use-rds-mysql/)
+      # EngineMode: serverless # Unavailable (if needed test if it is available in other regions) https://stackoverflow.com/questions/67465246/the-engine-mode-serverless-you-requested-is-currently-unavailable-with-5-7-2-07
+      # ScalingConfiguration: # for serverless
+      #   AutoPause: true # TO DO: double check this for the final version
+      #   MaxCapacity: 10
+      #   MinCapacity: 1
+      #   SecondsUntilAutoPause: 300 # TO DO: double check this for the final version
+      DBSubnetGroupName: default-vpc-0512fa1bdb55d87c1
+        # Ref: default-vpc-0512fa1bdb55d87c1
+  WMGDatabaseInstance:
+    Type: "AWS::RDS::DBInstance"
+    Properties:
+      DBClusterIdentifier:
+        Ref: WMGDatabaseCluster
+      DBInstanceClass: db.t3.medium
+      Engine: "aurora-mysql"
+      PubliclyAccessible: "true"
+  WMGKMSKey:
+    Type: 'AWS::KMS::Key'
+    Properties:
+      Description: Manual test KMS key
+      EnableKeyRotation: True
+      KeyPolicy:
+        Version: "2012-10-17"
+        Id: !Ref "AWS::StackName"
+        Statement:
+          - Sid: "Allow administration of the key"
+            Effect: "Allow"
+            Principal:
+              AWS:
+                Fn::Sub: 'arn:${AWS::Partition}:iam::${AWS::AccountId}:root'
+            Action:
+              - "kms:*"
+            Resource: "*"
+
 #---
 Outputs:
   # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
