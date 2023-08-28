@@ -16,7 +16,8 @@ Requirements:
 - To have aliases for some sam commands, run the following:
 ```
 git config --local alias.build '!sam build -t iac.yaml'
-git config --local alias.deploy '!sam deploy'
+git config --local alias.deploy '!sh -c "sam deploy -g --stack-name $1" -'
 git config --local alias.validate '!sam validate -t iac.yaml --lint'
+git config --local alias.delete '!sh -c "sam delete --stack-name $1" -'
 ```
-After that you can invoke those commands by simply running `git build`, `git deploy` or `git validate`.
+After that you can invoke those commands by simply running `git build`, `git deploy <stack-name>` or `git validate`.
