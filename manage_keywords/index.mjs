@@ -6,23 +6,46 @@
 //     };
 //     return response;
 // };
-
+import AWS from 'aws-sdk';
 import mysql from 'mysql';
 import { promisify } from 'util';
 
 // Environment variables for database connection
-// const db_host = process.env.DB_HOST;
-const db_host = "wmg-database-instance-1.c7vvpektphnh.sa-east-1.rds.amazonaws.com";
-// const db_user = process.env.DB_USER;
-const db_user = "admin";
-// const db_pass = process.env.DB_PASS;
-const db_pass = "wmg_d4t4b4s3_S3nha!";
-// const db_name = process.env.DB_NAME;
-const db_name = "wmg-db";
+const db_host = process.env.DB_HOST;
+// const db_host = "wmg-database-instance-1.c7vvpektphnh.sa-east-1.rds.amazonaws.com";
+const db_user = process.env.DB_USER;
+// const db_user = "admin";
+const db_secret_arn = process.env.DB_SECRET_ARN;
+// const db_pass = "wmg_d4t4b4s3_S3nha!";
+const db_name = process.env.DB_NAME;
+// const db_name = "wmg-db";
 
-export const handler = async (event, context) => {
+export const lambdaHandler = async (event, context) => {
     const http_method = event.httpMethod;
     const path_parameters = event.pathParameters;
+
+    let db_pass;
+    try {
+        const client = new AWS.SecretsManager();
+        const data = await client.getSecretValue({ SecretId: db_secret_arn }).promise();
+
+        if ('SecretString' in data) {
+          const secret = JSON.parse(data.SecretString);
+          const dbPassword = secret.password;
+          db_pass = dbPassword;
+          console.log(`Retrieved DB Password: ${dbPassword}`);
+        } else {
+          // Handle binary secret if needed
+          const decodedBinarySecret = Buffer.from(data.SecretBinary, 'base64');
+          db_pass = decodedBinarySecret.toString();
+          console.log(`Retrieved DB Password: ${decodedBinarySecret.toString()}`);
+        }
+    // Now you can use 'dbPassword' in your database connection logic.
+    } catch (error) {
+        console.error(error);
+        return {};
+        // Handle errors gracefully.
+    }
 
     // Connect to the database
     const connection = mysql.createConnection({
@@ -128,4 +151,3 @@ export const handler = async (event, context) => {
         connection.end();
     }
 };
-

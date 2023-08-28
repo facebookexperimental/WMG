@@ -30,6 +30,14 @@ Globals:
   Function:
     Timeout: 3
 
+Parameters:
+  WMGDatabaseClusterUsername:
+    Type: String
+    Default: admin
+  WMGDatabaseClusterDBName:
+    Type: String
+    Default: wmgdb
+
 #---
 Resources:
   # S3 to store csvs
@@ -119,6 +127,13 @@ Resources:
       Handler: index.lambdaHandler
       Architectures:
         - x86_64
+      Role: !GetAtt ManageKeywordsRole.Arn
+      Environment:
+        Variables:
+          DB_HOST: !GetAtt WMGDatabaseInstance.Endpoint.Address
+          DB_USER: !Ref WMGDatabaseClusterUsername
+          DB_SECRET_ARN: !GetAtt WMGDatabaseCluster.MasterUserSecret.SecretArn
+          DB_NAME: !Ref WMGDatabaseClusterDBName
       Events:
         HelloWorld:
           Type: Api
@@ -166,12 +181,12 @@ Resources:
   WMGDatabaseCluster:
     Type: "AWS::RDS::DBCluster"
     Properties:
-      MasterUsername: admin
+      MasterUsername: !Ref WMGDatabaseClusterUsername
       ManageMasterUserPassword: true
       MasterUserSecret:
         KmsKeyId: !Ref WMGKMSKey
       DBClusterIdentifier: wmg-db-cluster
-      DatabaseName: wmgdb
+      DatabaseName: WMGDatabaseClusterDBName
       Engine: "aurora-mysql" # TO DO: check if aurora is really the best option (https://www.percona.com/blog/when-should-i-use-amazon-aurora-and-when-should-i-use-rds-mysql/)
       # EngineMode: serverless # Unavailable (if needed test if it is available in other regions) https://stackoverflow.com/questions/67465246/the-engine-mode-serverless-you-requested-is-currently-unavailable-with-5-7-2-07
       # ScalingConfiguration: # for serverless
@@ -206,6 +221,43 @@ Resources:
             Action:
               - "kms:*"
             Resource: "*"
+
+#--- IAM Roles
+  ManageKeywordsRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: "Allow"
+            Principal:
+              Service:
+              - lambda.amazonaws.com
+            Action: "sts:AssumeRole"
+      Path: "/"
+      Policies:
+        -
+          PolicyName: SecretManagerRDSAccessRole
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: VisualEditor0
+                Effect: Allow
+                Action:
+                  - kms:GetParametersForImport
+                  - kms:GetPublicKey
+                  - kms:Decrypt
+                  - secretsmanager:GetSecretValue
+                  - kms:GetKeyRotationStatus
+                  - kms:GetKeyPolicy
+                  - kms:DescribeKey
+                Resource:
+                  - !GetAtt WMGKMSKey.Arn
+                  - !GetAtt WMGDatabaseCluster.MasterUserSecret.SecretArn
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
 
 #---
 Outputs:
