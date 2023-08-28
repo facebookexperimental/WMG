@@ -6,7 +6,7 @@
 #---
 AWSTemplateFormatVersion: 2010-09-09
 Transform: AWS::Serverless-2016-10-31
-Description: WAMG bla, bla, bla
+Description: WMG - WhatsApp Measurement Gateway (a filter for automatically identifying conversational signals)
 
 # Ref.: https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/what-is-sam.html
 # Ref.: https://github.com/aws/aws-sam-cli-app-templates
@@ -185,8 +185,12 @@ Resources:
       ManageMasterUserPassword: true
       MasterUserSecret:
         KmsKeyId: !Ref WMGKMSKey
-      DBClusterIdentifier: wmg-db-cluster
-      DatabaseName: WMGDatabaseClusterDBName
+      DBClusterIdentifier:
+        Fn::Join:
+          - "-"
+          - - !Ref "AWS::StackName"
+            - "wmg-db-cluster"
+      DatabaseName: !Ref WMGDatabaseClusterDBName
       Engine: "aurora-mysql" # TO DO: check if aurora is really the best option (https://www.percona.com/blog/when-should-i-use-amazon-aurora-and-when-should-i-use-rds-mysql/)
       # EngineMode: serverless # Unavailable (if needed test if it is available in other regions) https://stackoverflow.com/questions/67465246/the-engine-mode-serverless-you-requested-is-currently-unavailable-with-5-7-2-07
       # ScalingConfiguration: # for serverless
