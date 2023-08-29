@@ -55,8 +55,8 @@ export const lambdaHandler = async (event, context) => {
       await query(`
         CREATE TABLE IF NOT EXISTS keywords (
           id INT AUTO_INCREMENT PRIMARY KEY,
-          keyword VARCHAR(200) UNIQUE,
-          \`signal\` VARCHAR(100),
+          keyword VARCHAR(200) NOT NULL UNIQUE,
+          \`signal\` VARCHAR(100) NOT NULL,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         )
@@ -66,8 +66,8 @@ export const lambdaHandler = async (event, context) => {
         CREATE TABLE IF NOT EXISTS signals (
           id INT AUTO_INCREMENT PRIMARY KEY,
           keyword_id INT,
-          business_number VARCHAR(20),
-          consumer_number VARCHAR(20),
+          business_number VARCHAR(20) NOT NULL,
+          consumer_number VARCHAR(20) NOT NULL,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY (keyword_id) REFERENCES keywords(id)
         )

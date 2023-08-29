@@ -135,12 +135,26 @@ Resources:
           DB_SECRET_ARN: !GetAtt WMGDatabaseCluster.MasterUserSecret.SecretArn
           DB_NAME: !Ref WMGDatabaseClusterDBName
       Events:
-        HelloWorld:
+        GetAllKeywords:
+          Type: Api
+          Properties:
+            Path: /keywords
+            Method: get
+        GetKeywordById:
+          Type: Api
+          Properties:
+            Path: /keywords/{id}
+            Method: get
+        CreateKeyword:
           Type: Api
           Properties:
             Path: /keywords
             Method: post
-            # ApiId: !Ref MyHttpApiGateway ==> explicit API Gateway
+        UpdateKeywordById:
+          Type: Api
+          Properties:
+            Path: /keywords/{id}
+            Method: put
 
   CampaignsPerformanceFunction:
     Type: AWS::Serverless::Function
