@@ -226,6 +226,29 @@ Resources:
               - "kms:*"
             Resource: "*"
 
+  DBInitFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: 'Creates db tables schema on cfn stack creation'
+      Runtime: nodejs18.x
+      CodeUri: db_init
+      Handler: index.lambdaHandler
+      Architectures:
+        - x86_64
+      Role: !GetAtt ManageKeywordsRole.Arn
+      Environment:
+        Variables:
+          DB_HOST: !GetAtt WMGDatabaseInstance.Endpoint.Address
+          DB_USER: !Ref WMGDatabaseClusterUsername
+          DB_SECRET_ARN: !GetAtt WMGDatabaseCluster.MasterUserSecret.SecretArn
+          DB_NAME: !Ref WMGDatabaseClusterDBName
+
+  DBInitCustomResource:
+    Type: 'Custom::LambdaRDS' # Could be anything in place of 'LambdaRDS'
+    Properties:
+      ServiceToken: !GetAtt DBInitFunction.Arn
+      StackName: !Ref "AWS::StackName"
+
 #--- IAM Roles
   ManageKeywordsRole:
     Type: "AWS::IAM::Role"
