@@ -13,12 +13,14 @@ export const lambdaHandler = async (event, context) => {
     const httpMethod = event.httpMethod;
     const { id: keyword_id } = event.pathParameters || {};
 
+    let connection;
     try {
         db_pass = await getDatabasePassword();
-        const connection = createConnection();
+        connection = createConnection();
 
         if (httpMethod === 'GET') {
             if (keyword_id) {
+                console.info('keyword_id: ', keyword_id);
                 const result = await queryDatabase(connection, 'SELECT * FROM keywords WHERE id=?', [keyword_id]);
                 return generateResponse(200, result);
             } else {
@@ -26,10 +28,12 @@ export const lambdaHandler = async (event, context) => {
                 return generateResponse(200, result);
             }
         } else if (httpMethod === 'POST') {
+            console.info('Body:', event.body);
             const {keyword, signal} = JSON.parse(event.body);
             const result = await queryDatabase(connection, 'INSERT INTO keywords (keyword, `signal`) VALUES (?, ?)', [keyword, signal]);
             return generateResponse(200, { id: result.insertId, keyword, signal });
         } else if (httpMethod === 'PUT') {
+            console.info('Body:', event.body, 'keyword_id: ', keyword_id);
             const {keyword, signal} = JSON.parse(event.body);
             await queryDatabase(connection, 'UPDATE keywords SET keyword=?, `signal`=? WHERE id=?', [keyword, signal, keyword_id]);
             return generateResponse(200, { id: keyword_id, keyword, signal });
@@ -39,6 +43,9 @@ export const lambdaHandler = async (event, context) => {
     } catch (error) {
         console.error(error);
         return generateResponse(500, { message: 'Internal Server Error' });
+    } finally {
+        // Close the database connection
+        if(connection) connection.end();
     }
 };
 
@@ -66,6 +73,7 @@ const queryDatabase = async (connection, queryStr, params) => {
 
 // Helper function to create a database connection
 const createConnection = () => {
+    console.info('Creating db connection');
     return mysql.createConnection({
         host: db_host,
         user: db_user,
@@ -77,9 +85,10 @@ const createConnection = () => {
 // Helper function to get the database password from AWS Secrets Manager
 const getDatabasePassword = async () => {
     try {
+        console.info('Getting password');
         const client = new AWS.SecretsManager();
         const data = await client.getSecretValue({ SecretId: db_secret_arn }).promise();
-
+        console.info('Parsing password');
         if ('SecretString' in data) {
             const secret = JSON.parse(data.SecretString);
             return secret.password;

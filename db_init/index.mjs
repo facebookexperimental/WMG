@@ -8,6 +8,7 @@ const db_host = process.env.DB_HOST;
 const db_user = process.env.DB_USER;
 const db_secret_arn = process.env.DB_SECRET_ARN;
 const db_name = process.env.DB_NAME;
+let db_pass;
 
 export const lambdaHandler = async (event, context) => {
     const responseData = {};
@@ -17,61 +18,35 @@ export const lambdaHandler = async (event, context) => {
       return true;
     }
 
-    let db_pass;
+    let connection;
     try {
-        const client = new AWS.SecretsManager();
-        const data = await client.getSecretValue({ SecretId: db_secret_arn }).promise();
+      db_pass = await getDatabasePassword();
+      connection = createConnection();
 
-        if ('SecretString' in data) {
-          const secret = JSON.parse(data.SecretString);
-          const dbPassword = secret.password;
-          db_pass = dbPassword;
-          console.log(`Retrieved DB Password: ${dbPassword}`);
-        } else {
-          // Handle binary secret if needed
-          const decodedBinarySecret = Buffer.from(data.SecretBinary, 'base64');
-          db_pass = decodedBinarySecret.toString();
-          console.log(`Retrieved DB Password: ${decodedBinarySecret.toString()}`);
-        }
-    // Now you can use 'dbPassword' in your database connection logic.
-    } catch (error) {
-        console.error(error);
-        responseStatus = 'FAILED';
-        await sendResponse(event, context, responseStatus, responseData);
-        return true;
-    }
-
-    // Connect to the database
-    const connection = mysql.createConnection({
-        host: db_host,
-        user: db_user,
-        password: db_pass,
-        database: db_name
-    });
-
-    const query = promisify(connection.query).bind(connection);
-
-    try {
-      await query(`
-        CREATE TABLE IF NOT EXISTS keywords (
+      console.info('Creating keywords table schema');
+      await queryDatabase(
+        connection,
+        `CREATE TABLE IF NOT EXISTS keywords (
           id INT AUTO_INCREMENT PRIMARY KEY,
           keyword VARCHAR(200) NOT NULL UNIQUE,
           \`signal\` VARCHAR(100) NOT NULL,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-        )
-      `);
+        )`
+      );
 
-      await query(`
-        CREATE TABLE IF NOT EXISTS signals (
+      console.info('Creating signals table schema');
+      await queryDatabase(
+        connection,
+        `CREATE TABLE IF NOT EXISTS signals (
           id INT AUTO_INCREMENT PRIMARY KEY,
           keyword_id INT,
           business_number VARCHAR(20) NOT NULL,
           consumer_number VARCHAR(20) NOT NULL,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY (keyword_id) REFERENCES keywords(id)
-        )
-      `);
+        )`
+      );
     } catch (error) {
         console.error(error);
         responseStatus = 'FAILED';
@@ -115,3 +90,47 @@ async function sendResponse(event, context, responseStatus, responseData, physic
     throw new Error('Could not send CloudFormation response');
   }
 }
+
+// Helper function to query the database
+const queryDatabase = async (connection, queryStr, params) => {
+  const queryAsync = promisify(connection.query).bind(connection);
+
+  try {
+      const result = await queryAsync(queryStr, params);
+      return result;
+  } catch (error) {
+      console.error(error);
+      throw error;
+  }
+};
+
+// Helper function to create a database connection
+const createConnection = () => {
+  console.info('Creating db connection');
+  return mysql.createConnection({
+      host: db_host,
+      user: db_user,
+      password: db_pass,
+      database: db_name
+  });
+};
+
+// Helper function to get the database password from AWS Secrets Manager
+const getDatabasePassword = async () => {
+    try {
+        console.info('Getting password');
+        const client = new AWS.SecretsManager();
+        const data = await client.getSecretValue({ SecretId: db_secret_arn }).promise();
+        console.info('Parsing password');
+        if ('SecretString' in data) {
+            const secret = JSON.parse(data.SecretString);
+            return secret.password;
+        } else {
+            const decodedBinarySecret = Buffer.from(data.SecretBinary, 'base64');
+            return decodedBinarySecret.toString();
+        }
+    } catch (error) {
+        console.error(error);
+        throw error;
+    }
+};
