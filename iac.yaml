@@ -88,31 +88,28 @@ Resources:
       #SqsManagedSseEnabled: false
 
   # 2nd Lambda - using SQS trigger to process message and store results in database
-  # https://github.com/aws/aws-sam-cli-app-templates/tree/master/nodejs18.x/sqs
-  # This is the Lambda function definition associated with the source code: sqs-payload-logger.js. For all available properties, see
-  # https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
   ProcessSignalsFunction:
     Type: 'AWS::Serverless::Function'
     Properties:
-      Description: 'A Lambda function that logs the payload of messages sent to an associated SQS queue.'
+      Description: 'Process SQS messages searching for keywords to be saved in the signals table'
       Runtime: nodejs18.x
       Architectures:
         - x86_64
-      CodeUri: process_signals/
-      Handler: src/handlers/sqs-payload-logger.sqsPayloadLoggerHandler
-      MemorySize: 128
-      #Role: !GetAtt MyAWSomeRoleForLambda.Arn
-      Timeout: 25 # Chosen to be less than the default SQS Visibility Timeout of 30 seconds
-      Policies:
-        # Give Lambda basic execution Permission to the helloFromLambda
-        - AWSLambdaBasicExecutionRole
+      CodeUri: process_signals
+      Handler: index.lambdaHandler
+      Role: !GetAtt RDSnSQSAccessRole.Arn
+      Environment:
+        Variables:
+          DB_HOST: !GetAtt WMGDatabaseInstance.Endpoint.Address
+          DB_USER: !Ref WMGDatabaseClusterUsername
+          DB_SECRET_ARN: !GetAtt WMGDatabaseCluster.MasterUserSecret.SecretArn
+          DB_NAME: !Ref WMGDatabaseClusterDBName
       Events:
         NewMessageOnQueue:
           Type: SQS #https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-property-function-sqs.html
           Properties:
             Queue: !GetAtt SentMessageQueue.Arn
-            BatchSize: 10 #The maximum number of items to retrieve in a single batch.
-            #Enabled: false #Disables the event source mapping to pause polling and invocation.
+            BatchSize: 1
 
   ManageKeywordsFunction:
     Type: AWS::Serverless::Function
@@ -123,7 +120,7 @@ Resources:
       Handler: index.lambdaHandler
       Architectures:
         - x86_64
-      Role: !GetAtt ManageKeywordsRole.Arn
+      Role: !GetAtt RDSAccessRole.Arn
       Environment:
         Variables:
           DB_HOST: !GetAtt WMGDatabaseInstance.Endpoint.Address
@@ -245,7 +242,7 @@ Resources:
       Handler: index.lambdaHandler
       Architectures:
         - x86_64
-      Role: !GetAtt ManageKeywordsRole.Arn
+      Role: !GetAtt RDSAccessRole.Arn
       Environment:
         Variables:
           DB_HOST: !GetAtt WMGDatabaseInstance.Endpoint.Address
@@ -260,7 +257,7 @@ Resources:
       StackName: !Ref "AWS::StackName"
 
 #--- IAM Roles
-  ManageKeywordsRole:
+  RDSAccessRole:
     Type: "AWS::IAM::Role"
     Properties:
       AssumeRolePolicyDocument:
@@ -273,26 +270,27 @@ Resources:
               - lambda.amazonaws.com
             Action: "sts:AssumeRole"
       Path: "/"
-      Policies:
-        -
-          PolicyName: RDSAccessPolicy
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement:
-              - Sid: VisualEditor0
-                Effect: Allow
-                Action:
-                  - kms:GetParametersForImport
-                  - kms:GetPublicKey
-                  - kms:Decrypt
-                  - secretsmanager:GetSecretValue
-                  - kms:GetKeyRotationStatus
-                  - kms:GetKeyPolicy
-                  - kms:DescribeKey
-                Resource:
-                  - !GetAtt WMGKMSKey.Arn
-                  - !GetAtt WMGDatabaseCluster.MasterUserSecret.SecretArn
       ManagedPolicyArns:
+        - !Ref RDSAccessPolicy
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+
+  RDSnSQSAccessRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: "Allow"
+            Principal:
+              Service:
+              - lambda.amazonaws.com
+            Action: "sts:AssumeRole"
+      Path: "/"
+      ManagedPolicyArns:
+        - !Ref RDSAccessPolicy
+        - !Ref SQSConsumePolicy
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
         - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
 
@@ -309,21 +307,58 @@ Resources:
               - lambda.amazonaws.com
             Action: "sts:AssumeRole"
       Path: "/"
-      Policies:
-        -
-          PolicyName: SQSAccessPolicy
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement:
-              - Sid: VisualEditor0
-                Effect: Allow
-                Action:
-                  - sqs:SendMessage
-                Resource:
-                  - !GetAtt SentMessageQueue.Arn
       ManagedPolicyArns:
+        - !Ref SQSWritePolicy
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
         - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+
+  RDSAccessPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: VisualEditor0
+            Effect: Allow
+            Action:
+              - kms:GetParametersForImport
+              - kms:GetPublicKey
+              - kms:Decrypt
+              - secretsmanager:GetSecretValue
+              - kms:GetKeyRotationStatus
+              - kms:GetKeyPolicy
+              - kms:DescribeKey
+            Resource:
+              - !GetAtt WMGKMSKey.Arn
+              - !GetAtt WMGDatabaseCluster.MasterUserSecret.SecretArn
+
+  SQSWritePolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: VisualEditor0
+            Effect: Allow
+            Action:
+              - sqs:SendMessage
+            Resource:
+              - !GetAtt SentMessageQueue.Arn
+
+  SQSConsumePolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: VisualEditor0
+            Effect: Allow
+            Action:
+              - sqs:ReceiveMessage
+              - sqs:DeleteMessage
+              - sqs:GetQueueAttributes
+            Resource:
+              - !GetAtt SentMessageQueue.Arn
 
 #---
 Outputs:
