@@ -66,8 +66,8 @@ Resources:
         Variables:
           QUEUE_URL: !Ref SentMessageQueue # https://stackoverflow.com/questions/48551094/aws-get-sqs-url-in-sam-template-yml-file
       Events:
-        HelloWorld:
-          Type: Api # change to HttpApi?
+        CloudAPIRouter:
+          Type: Api
           Properties:
             Path: /wa-cloud-api-router
             Method: post
@@ -154,21 +154,21 @@ Resources:
     Properties:
       Description: 'Generate output file with campaigns performance info'
       Runtime: nodejs18.x
-      CodeUri: campaigns_performance/hello-world/
-      Handler: app.lambdaHandler
+      CodeUri: campaigns_performance
+      Handler: index.lambdaHandler
       Architectures:
         - x86_64
+      Role: !GetAtt CampaignsPerformanceRole.Arn
       Environment:
         Variables:
           BUCKET_NAME: !Ref WMGOutputBucket # https://stackoverflow.com/questions/48551094/aws-get-sqs-url-in-sam-template-yml-file
-      # # TODO: this policy was not enough to allow S3 writing
-      # # Permissions for the Lambda function to write to an S3 bucket
-      # Policies:
-      #   - S3CrudPolicy:
-      #       BucketName: !Ref WMGOutputBucket
+          DB_HOST: !GetAtt WMGDatabaseInstance.Endpoint.Address
+          DB_USER: !Ref WMGDatabaseClusterUsername
+          DB_SECRET_ARN: !GetAtt WMGDatabaseCluster.MasterUserSecret.SecretArn
+          DB_NAME: !Ref WMGDatabaseClusterDBName
       Events:
-        HelloWorld:
-          Type: Api # change to HttpApi?
+        GenerateCSV:
+          Type: Api
           Properties:
             Path: /campaigns-performance
             Method: post
@@ -312,6 +312,25 @@ Resources:
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
         - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
 
+  CampaignsPerformanceRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: "Allow"
+            Principal:
+              Service:
+              - lambda.amazonaws.com
+            Action: "sts:AssumeRole"
+      Path: "/"
+      ManagedPolicyArns:
+        - !Ref RDSAccessPolicy
+        - !Ref S3WritePolicy
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+
   RDSAccessPolicy:
     Type: AWS::IAM::ManagedPolicy
     Properties:
@@ -359,6 +378,18 @@ Resources:
               - sqs:GetQueueAttributes
             Resource:
               - !GetAtt SentMessageQueue.Arn
+
+  S3WritePolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: My S3 Access Policy
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - s3:PutObject
+            Resource: !Sub "arn:aws:s3:::${WMGOutputBucket}/*"
 
 #---
 Outputs:
