@@ -61,14 +61,10 @@ Resources:
       Handler: index.lambdaHandler
       Architectures:
         - x86_64
+      Role: !GetAtt RouterRole.Arn
       Environment:
         Variables:
           QUEUE_URL: !Ref SentMessageQueue # https://stackoverflow.com/questions/48551094/aws-get-sqs-url-in-sam-template-yml-file
-      # TODO: this policy was not enough to allow SQS writing
-      # Policies:
-      #      # Permissions for the Lambda function to send messages to the SQS queue
-      #       - SQSSendMessagePolicy:
-      #           QueueName: !GetAtt SentMessageQueue.QueueName  # Reference to the SQS queue resource
       Events:
         HelloWorld:
           Type: Api # change to HttpApi?
@@ -340,6 +336,3 @@ Outputs:
   RouterFunction:
     Description: "Send Message Lambda Function ARN"
     Value: !GetAtt RouterFunction.Arn
-  RouterFunctionIamRole:
-    Description: "Implicit IAM Role created for Hello World function"
-    Value: !GetAtt RouterFunctionRole.Arn
