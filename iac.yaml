@@ -279,7 +279,7 @@ Resources:
       Path: "/"
       Policies:
         -
-          PolicyName: SecretManagerRDSAccessRole
+          PolicyName: RDSAccessPolicy
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
@@ -296,6 +296,35 @@ Resources:
                 Resource:
                   - !GetAtt WMGKMSKey.Arn
                   - !GetAtt WMGDatabaseCluster.MasterUserSecret.SecretArn
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+
+  RouterRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: "Allow"
+            Principal:
+              Service:
+              - lambda.amazonaws.com
+            Action: "sts:AssumeRole"
+      Path: "/"
+      Policies:
+        -
+          PolicyName: SQSAccessPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: VisualEditor0
+                Effect: Allow
+                Action:
+                  - sqs:SendMessage
+                Resource:
+                  - !GetAtt SentMessageQueue.Arn
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
         - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
