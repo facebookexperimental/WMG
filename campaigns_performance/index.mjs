@@ -9,15 +9,13 @@ const db_secret_arn = process.env.DB_SECRET_ARN;
 const db_name = process.env.DB_NAME;
 let db_pass;
 
-const s3 = new AWS.S3({apiVersion: '2006-03-01'});
+AWS.config.update({ region: 'sa-east-1' });
+const s3 = new AWS.S3();
 export const lambdaHandler = async (event, context) => {
     let connection;
     try {
         db_pass = await getDatabasePassword();
         connection = createConnection();
-
-        // // Create CSV content
-        // const csvContent = "Name,Age\nJohn,30\nJane,28";
 
         const signalCountsQuery = `
             SELECT s.business_number, k.signal, COUNT(*) AS signal_count

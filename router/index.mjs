@@ -1,8 +1,7 @@
 import AWS from 'aws-sdk';
 
 AWS.config.update({ region: 'sa-east-1' });
-const sqs = new AWS.SQS({ apiVersion: '2023-08-09' });
-
+const sqs = new AWS.SQS();
 export const lambdaHandler = async (event, context) => {
     console.log('Incoming request ' + JSON.stringify(event));
 

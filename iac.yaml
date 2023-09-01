@@ -18,12 +18,12 @@ Description: WMG - WhatsApp Measurement Gateway (a filter for automatically iden
 # sam init --runtime nodejs18.x --app-template quick-start-sqs --name prjLambda2
 #
 # sam build -t iac.yaml
-# sam deploy -g --stack-name bizeng-latam-wamg-stk
-# sam logs -n MyAWSomeLambda --stack-name bizeng-latam-wamg-stk --tail
+# sam deploy -g --stack-name bizeng-latam-wmg-stk
+# sam logs -n MyAWSomeLambda --stack-name bizeng-latam-wmg-stk --tail
 #
-# aws cloudformation delete-stack --stack-name bizeng-latam-wamg-stk --region sa-east-1
+# aws cloudformation delete-stack --stack-name bizeng-latam-wmg-stk --region sa-east-1
 # or
-# sam delete --stack-name bizeng-latam-wamg-stk
+# sam delete --stack-name bizeng-latam-wmg-stk
 
 # More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
 Globals:
@@ -53,7 +53,7 @@ Resources:
   # 1st Lambda - from api gateway to sqs + middleman between Client and WA servers (with implicit API Gateway FOR NOW)
   # https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-resource-function.html
   RouterFunction:
-    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Type: AWS::Serverless::Function
     Properties:
       Description: 'Calls WA Cloud API and enqueues task'
       Runtime: nodejs18.x
@@ -64,7 +64,7 @@ Resources:
       Role: !GetAtt RouterRole.Arn
       Environment:
         Variables:
-          QUEUE_URL: !Ref SentMessageQueue # https://stackoverflow.com/questions/48551094/aws-get-sqs-url-in-sam-template-yml-file
+          QUEUE_URL: !Ref SentMessageQueue
       Events:
         CloudAPIRouter:
           Type: Api
@@ -73,9 +73,6 @@ Resources:
             Method: post
             # ApiId: !Ref MyHttpApiGateway ==> explicit API Gateway
 
-  # SQS queue
-  # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-sqs-queues.html
-  # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-sqs-queue.html
   SentMessageQueue:
     Type: AWS::SQS::Queue
     Properties:
@@ -83,11 +80,10 @@ Resources:
         Fn::Join:
           - "-"
           - - !Ref "AWS::StackName"
-            - "bizeng-latam-wamg-q"
+            - "wmg-processing-messages-queue"
       VisibilityTimeout: 60
       #SqsManagedSseEnabled: false
 
-  # 2nd Lambda - using SQS trigger to process message and store results in database
   ProcessSignalsFunction:
     Type: 'AWS::Serverless::Function'
     Properties:
@@ -161,7 +157,7 @@ Resources:
       Role: !GetAtt CampaignsPerformanceRole.Arn
       Environment:
         Variables:
-          BUCKET_NAME: !Ref WMGOutputBucket # https://stackoverflow.com/questions/48551094/aws-get-sqs-url-in-sam-template-yml-file
+          BUCKET_NAME: !Ref WMGOutputBucket
           DB_HOST: !GetAtt WMGDatabaseInstance.Endpoint.Address
           DB_USER: !Ref WMGDatabaseClusterUsername
           DB_SECRET_ARN: !GetAtt WMGDatabaseCluster.MasterUserSecret.SecretArn
@@ -172,18 +168,6 @@ Resources:
           Properties:
             Path: /campaigns-performance
             Method: post
-
-  #Permission to allow the correct display (bug?) of S3 trigger (to call) on Lambda console...
-  #https://github.com/aws/serverless-application-model/issues/300
-  #https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-lambda-permission.html
-  #MyAWSomeInvokePermission:
-  #  Type: 'AWS::Lambda::Permission'
-  #  Properties:
-  #    FunctionName: !GetAtt ProcessSignalsFunction.Arn
-  #    Action: 'lambda:InvokeFunction'
-  #    Principal: 'sqs.amazonaws.com'
-  #    SourceAccount: !Sub ${AWS::AccountId}
-  #    SourceArn: !GetAtt SentMessageQueue.Arn
 
   WMGDatabaseCluster:
     Type: "AWS::RDS::DBCluster"
@@ -396,9 +380,6 @@ Outputs:
   # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
   # Find out more about other implicit resources you can reference within SAM
   # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
-  HelloWorldApi:
-    Description: "API Gateway endpoint URL for Prod stage for Hello World function"
+  EndpointsBaseURL:
+    Description: "API Gateway base endpoint URL for Prod stage"
     Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/hello/"
-  RouterFunction:
-    Description: "Send Message Lambda Function ARN"
-    Value: !GetAtt RouterFunction.Arn

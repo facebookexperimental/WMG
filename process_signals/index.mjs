@@ -9,6 +9,7 @@ const db_secret_arn = process.env.DB_SECRET_ARN;
 const db_name = process.env.DB_NAME;
 let db_pass;
 
+AWS.config.update({ region: 'sa-east-1' });
 export const lambdaHandler = async (event, context) => {
     let connection;
     try {
@@ -31,7 +32,7 @@ export const lambdaHandler = async (event, context) => {
                 keywordMap.set(row.keyword, row.id);
             }
 
-            console.info('Searching keywords the message body');
+            console.info('Searching keywords in the message body');
             const matchingKeywords = [];
             for (const [keyword, id] of keywordMap.entries()) {
                 if (messageBodyText.includes(keyword)) {

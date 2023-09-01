@@ -1,12 +1,12 @@
 {
-    "name": "WMG - Process Signals",
+    "name": "wmg_process_signals",
     "description": "",
-    "version": "0.0.1",
+    "version": "1.0.0",
     "private": true,
     "main": "index.mjs",
     "dependencies": {
-        "mysql": "^2.18.1",
-        "aws-sdk": "^2.1433.0"
+        "aws-sdk": "^2.1433.0",
+        "mysql": "^2.18.1"
     },
     "scripts": {
         "test": "echo \"Error: no test specified\" && exit 1"
