@@ -53,7 +53,7 @@ export const lambdaHandler = async (event, context) => {
         responseStatus = 'FAILED';
     } finally {
       // Close the database connection
-      if(connection) connection.end();
+      if(connection) connection.destroy();
 
       await sendResponse(event, context, responseStatus, responseData);
     }

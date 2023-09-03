@@ -26,7 +26,7 @@ export const lambdaHandler = async (event, context) => {
         const signalCountsResult = await queryDatabase(connection, signalCountsQuery);
 
         // Close the database connection
-        connection.end();
+        connection.destroy();
 
         // Prepare a map to store signal counts for each business number
         const signalCountMap = new Map();

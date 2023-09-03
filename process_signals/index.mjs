@@ -56,7 +56,7 @@ export const lambdaHandler = async (event, context) => {
         console.error('Error:', error);
     } finally {
         // Close the database connection
-        if(connection) connection.end();
+        if(connection) connection.destroy();
     }
 }
 
