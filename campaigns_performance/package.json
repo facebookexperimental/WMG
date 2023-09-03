@@ -6,7 +6,8 @@
   "main": "index.mjs",
   "dependencies": {
     "aws-sdk": "^2.1433.0",
-    "mysql": "^2.18.1"
+    "mysql": "^2.18.1",
+    "node-fetch": "^2.3.0"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"

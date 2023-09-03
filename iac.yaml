@@ -166,7 +166,7 @@ Resources:
         GenerateCSV:
           Type: Api
           Properties:
-            Path: /campaigns-performance
+            Path: /campaigns-performance/{waba_id}
             Method: post
 
   WMGDatabaseCluster:
@@ -382,4 +382,4 @@ Outputs:
   # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
   EndpointsBaseURL:
     Description: "API Gateway base endpoint URL for Prod stage"
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/hello/"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
