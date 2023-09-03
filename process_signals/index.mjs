@@ -5,15 +5,15 @@ import { promisify } from 'util';
 // Environment variables for database connection
 const db_host = process.env.DB_HOST;
 const db_user = process.env.DB_USER;
-const db_secret_arn = process.env.DB_SECRET_ARN;
+const dbSecretArn = process.env.DB_SECRET_ARN;
 const db_name = process.env.DB_NAME;
-let db_pass;
+let dbPass;
 
 AWS.config.update({ region: 'sa-east-1' });
 export const lambdaHandler = async (event, context) => {
     let connection;
     try {
-        db_pass = await getDatabasePassword();
+        dbPass = await getDatabasePassword();
         connection = createConnection();
 
         const records = event.Records;
@@ -21,8 +21,8 @@ export const lambdaHandler = async (event, context) => {
             console.info('Parsing body:', record.body);
             const recordBody = JSON.parse(record.body);
             const messageBodyText = record.body;
-            const business_number = recordBody.business_number;
-            const consumer_number = recordBody.to;
+            const businessNumberId = recordBody.business_number_id;
+            const consumerNumber = recordBody.to;
 
             console.info('Fetching all keywords from database');
             const keywords = await queryDatabase(connection, 'SELECT id, keyword FROM keywords');
@@ -46,8 +46,8 @@ export const lambdaHandler = async (event, context) => {
                     console.log('Updating signals table for keyword: ' + keyword);
                     await queryDatabase(
                         connection,
-                        'INSERT INTO signals (keyword_id, business_number, consumer_number) VALUES (?, ?, ?)',
-                        [id, business_number, consumer_number]
+                        'INSERT INTO signals (keyword_id, business_phone_number_id, consumer_phone_number) VALUES (?, ?, ?)',
+                        [id, businessNumberId, consumerNumber]
                     );
                 }
             }
@@ -79,7 +79,7 @@ const createConnection = () => {
     return mysql.createConnection({
         host: db_host,
         user: db_user,
-        password: db_pass,
+        password: dbPass,
         database: db_name
     });
 };
@@ -89,7 +89,7 @@ const getDatabasePassword = async () => {
     try {
         console.info('Getting password');
         const client = new AWS.SecretsManager();
-        const data = await client.getSecretValue({ SecretId: db_secret_arn }).promise();
+        const data = await client.getSecretValue({ SecretId: dbSecretArn }).promise();
         console.info('Parsing password');
         if ('SecretString' in data) {
             const secret = JSON.parse(data.SecretString);

@@ -42,8 +42,8 @@ export const lambdaHandler = async (event, context) => {
         `CREATE TABLE IF NOT EXISTS signals (
           id INT AUTO_INCREMENT PRIMARY KEY,
           keyword_id INT,
-          business_number VARCHAR(20) NOT NULL,
-          consumer_number VARCHAR(20) NOT NULL,
+          business_phone_number_id VARCHAR(20) NOT NULL,
+          consumer_phone_number VARCHAR(20) NOT NULL,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY (keyword_id) REFERENCES keywords(id)
         )`
