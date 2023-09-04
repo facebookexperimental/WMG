@@ -28,7 +28,7 @@ Description: WMG - WhatsApp Measurement Gateway (a filter for automatically iden
 # More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
 Globals:
   Function:
-    Timeout: 3
+    Timeout: 30
 
 Parameters:
   WMGDatabaseClusterUsername:
