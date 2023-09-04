@@ -1,49 +1,51 @@
 import AWS from 'aws-sdk';
+import fetch from 'node-fetch';
 
 AWS.config.update({ region: 'sa-east-1' });
 const sqs = new AWS.SQS();
 export const lambdaHandler = async (event, context) => {
-    console.log('Incoming request ' + JSON.stringify(event));
+    console.info('Incoming request ' + JSON.stringify(event));
 
     try {
-        // Get the API request from the event
-        const apiRequest = JSON.parse(event.body);
+        console.info('Replay request to Cloud API');
+        const businessNumberId = event.pathParameters.business_phone_number_id;
+        const endpoint = `https://graph.facebook.com/v17.0/${businessNumberId}/messages`; // assuming there are no query params
+        const headers = event.headers;
+        headers['Host'] = 'graph.facebook.com'; // to fix this error (https://stackoverflow.com/questions/14262986/node-js-hostname-ip-doesnt-match-certificates-altnames)
+        const requestOptions = {
+            headers,
+            method: 'POST',
+        };
+        const response = await fetch(endpoint, requestOptions);
 
-        // Get the endpoint to replay the request to
-        const endpoint = 'graph.facebook.com/v17/' + apiRequest.endpoint;
-
-        // Make the request to the endpoint
-        const client = new AWS.Request('POST', endpoint);
-        client.headers = apiRequest.headers;
-        const response = await client.send();
+        //!!!!REMOVE and remove true in the if
+        const data = await response.json();
+        console.log('data', data);
 
         // Check if the HTTP request was successful
-        if (response.statusCode === 200) {
-            console.log("HTTP Request Successful. Status Code:", response.statusCode);
+        if (response.status === 200 || true) {
+            console.info("HTTP Request Successful. Enqueuing...");
 
             const queueUrl = process.env.QUEUE_URL;
             const params = {
-                MessageBody: JSON.stringify(event),
+                MessageBody: JSON.stringify({...JSON.parse(event.body), business_number_id: businessNumberId }),
                 QueueUrl: queueUrl
             };
-
-            // Send a message to the SQS queue
             const sendMessageResponse = await sqs.sendMessage(params).promise();
 
-            console.log("Successfully enqueued to queue. Message ID:", sendMessageResponse.MessageId);
+            console.info("Successfully enqueued to queue. Message ID:", sendMessageResponse.MessageId);
         } else {
-            console.error("HTTP Request Failed. Status Code:", response.statusCode);
+            const data = await response.json();
+            throw new Error(JSON.stringify(data));
         }
 
-        // Return the response
         return {
-            statusCode: response.statusCode,
-            body: response.body
+            statusCode: response.status,
+            body: JSON.stringify(data)
         };
     } catch (error) {
         console.error("Error:", error);
 
-        // Handle errors and return an appropriate response
         return {
             statusCode: 500,
             body: JSON.stringify({ message: 'Internal Server Error' })

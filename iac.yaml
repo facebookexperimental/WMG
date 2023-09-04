@@ -69,7 +69,7 @@ Resources:
         CloudAPIRouter:
           Type: Api
           Properties:
-            Path: /wa-cloud-api-router
+            Path: /{business_phone_number_id}/messages
             Method: post
             # ApiId: !Ref MyHttpApiGateway ==> explicit API Gateway
 
