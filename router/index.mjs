@@ -4,26 +4,23 @@ import fetch from 'node-fetch';
 AWS.config.update({ region: 'sa-east-1' });
 const sqs = new AWS.SQS();
 export const lambdaHandler = async (event, context) => {
-    console.info('Incoming request ' + JSON.stringify(event));
-
     try {
         console.info('Replay request to Cloud API');
         const businessNumberId = event.pathParameters.business_phone_number_id;
         const endpoint = `https://graph.facebook.com/v17.0/${businessNumberId}/messages`; // assuming there are no query params
-        const headers = event.headers;
-        headers['Host'] = 'graph.facebook.com'; // to fix this error (https://stackoverflow.com/questions/14262986/node-js-hostname-ip-doesnt-match-certificates-altnames)
+        const headers = {
+            'Authorization': event.headers['Authorization'],
+            'Content-Type': event.headers['Content-Type'],
+        };
         const requestOptions = {
             headers,
             method: 'POST',
+            body: event.body,
         };
         const response = await fetch(endpoint, requestOptions);
 
-        //!!!!REMOVE and remove true in the if
-        const data = await response.json();
-        console.log('data', data);
-
         // Check if the HTTP request was successful
-        if (response.status === 200 || true) {
+        if (response.status === 200) {
             console.info("HTTP Request Successful. Enqueuing...");
 
             const queueUrl = process.env.QUEUE_URL;
@@ -36,7 +33,7 @@ export const lambdaHandler = async (event, context) => {
             console.info("Successfully enqueued to queue. Message ID:", sendMessageResponse.MessageId);
         } else {
             const data = await response.json();
-            throw new Error(JSON.stringify(data));
+            console.error("Error:", data);
         }
 
         return {
@@ -48,7 +45,7 @@ export const lambdaHandler = async (event, context) => {
 
         return {
             statusCode: 500,
-            body: JSON.stringify({ message: 'Internal Server Error' })
+            body: JSON.stringify({ message: 'WMG - Internal Server Error' })
         };
     }
 };
