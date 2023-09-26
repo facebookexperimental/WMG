@@ -1,0 +1,14 @@
+{
+  "name": "wmg_router",
+  "description": "",
+  "version": "1.0.0",
+  "private": true,
+  "main": "index.mjs",
+  "dependencies": {
+    "aws-sdk": "^2.1433.0",
+    "node-fetch": "^2.3.0"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  }
+}

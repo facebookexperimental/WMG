@@ -1,0 +1,631 @@
+# Copyright (c) Facebook, Inc. and its affiliates.
+#
+# This source code is licensed under the MIT license found in the
+# LICENSE file in the root directory of this source tree.
+
+#---
+AWSTemplateFormatVersion: 2010-09-09
+Transform: AWS::Serverless-2016-10-31
+Description: WMG - WhatsApp Measurement Gateway
+
+# Ref.: https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/what-is-sam.html
+# Ref.: https://github.com/aws/aws-sam-cli-app-templates
+#---
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Globals:
+  Function:
+    Timeout: 30
+
+Parameters:
+  WMGDatabaseClusterUsername:
+    Type: String
+    Default: admin
+  WMGDatabaseClusterDBName:
+    Type: String
+    Default: wmgdb
+  WMGSecurityToken:
+    Type: String
+    Default: ""
+    Description: You must define a token that will need to be passed in the Authorization header when calling the APIs.
+
+#---
+Resources:
+  # S3 to store csvs
+  WMGOutputBucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName:
+        Fn::Join:
+          - "-"
+          - - !Ref "AWS::StackName"
+            - "wmg-output"
+
+  LambdasAuthAPI:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: Prod
+      Auth:
+        DefaultAuthorizer: DefaultTokenAuthorizer
+        Authorizers:
+          DefaultTokenAuthorizer:
+            FunctionArn: !GetAtt AuthFunction.Arn
+            Identity:
+              Header: WMG-Security-Token
+              ReauthorizeEvery: 60
+
+  AuthFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: 'Authenticates API calls'
+      Runtime: nodejs18.x
+      CodeUri: authorizer
+      Handler: index.lambdaHandler
+      Architectures:
+        - x86_64
+      Environment:
+        Variables:
+          SECURITY_TOKEN: !Ref WMGSecurityToken
+
+  RouterFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: 'Calls WA Cloud API and enqueues task'
+      Runtime: nodejs18.x
+      CodeUri: router
+      Handler: index.lambdaHandler
+      Architectures:
+        - x86_64
+      Role: !GetAtt RouterRole.Arn
+      Environment:
+        Variables:
+          QUEUE_URL: !Ref SentMessageQueue
+      Events:
+        CloudAPIRouter:
+          Type: Api
+          Properties:
+            Auth:
+              Authorizer: NONE # Turn off Authorization for this function
+            RestApiId: !Ref LambdasAuthAPI
+            Path: /{business_phone_number_id}/messages
+            Method: post
+
+  SentMessageQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName:
+        Fn::Join:
+          - "-"
+          - - !Ref "AWS::StackName"
+            - "wmg-processing-messages-queue"
+      VisibilityTimeout: 60
+
+  ProcessSignalsFunction:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      Description: 'Process SQS messages searching for keywords to be saved in the signals table'
+      Runtime: nodejs18.x
+      Architectures:
+        - x86_64
+      CodeUri: process_signals
+      Handler: index.lambdaHandler
+      VpcConfig: # For accessing RDS instance
+        SecurityGroupIds:
+          - !Ref WMGLambdaSecurityGroup
+        SubnetIds:
+          - !Ref WMGPrivateLambdaSubnet1
+          - !Ref WMGPrivateLambdaSubnet2
+      Role: !GetAtt RDSnSQSAccessRole.Arn
+      Environment:
+        Variables:
+          DB_HOST: !GetAtt WMGDatabaseInstance.Endpoint.Address
+          DB_USER: !Ref WMGDatabaseClusterUsername
+          DB_SECRET_ARN: !Ref WMGDBSecret
+          DB_NAME: !Ref WMGDatabaseClusterDBName
+      Events:
+        NewMessageOnQueue:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt SentMessageQueue.Arn
+            BatchSize: 1
+
+  ManageKeywordsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: 'API to make CRUD operations in keywords table'
+      Runtime: nodejs18.x
+      CodeUri: manage_keywords
+      Handler: index.lambdaHandler
+      Architectures:
+        - x86_64
+      VpcConfig: # For accessing RDS instance
+        SecurityGroupIds:
+          - !Ref WMGLambdaSecurityGroup
+        SubnetIds:
+          - !Ref WMGPrivateLambdaSubnet1
+          - !Ref WMGPrivateLambdaSubnet2
+      Role: !GetAtt RDSAccessRole.Arn
+      Environment:
+        Variables:
+          DB_HOST: !GetAtt WMGDatabaseInstance.Endpoint.Address
+          DB_USER: !Ref WMGDatabaseClusterUsername
+          DB_SECRET_ARN: !Ref WMGDBSecret
+          DB_NAME: !Ref WMGDatabaseClusterDBName
+      Events:
+        GetAllKeywords:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LambdasAuthAPI
+            Path: /keywords
+            Method: get
+        GetKeywordById:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LambdasAuthAPI
+            Path: /keywords/{id}
+            Method: get
+        CreateKeyword:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LambdasAuthAPI
+            Path: /keywords
+            Method: post
+        UpdateKeywordById:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LambdasAuthAPI
+            Path: /keywords/{id}
+            Method: put
+
+  CampaignsPerformanceFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: 'Generate output file with campaigns performance info'
+      Runtime: nodejs18.x
+      CodeUri: campaigns_performance
+      Handler: index.lambdaHandler
+      Architectures:
+        - x86_64
+      VpcConfig: # For accessing RDS instance
+        SecurityGroupIds:
+          - !Ref WMGLambdaSecurityGroup
+        SubnetIds:
+          - !Ref WMGPrivateLambdaSubnet1
+          - !Ref WMGPrivateLambdaSubnet2
+      Role: !GetAtt CampaignsPerformanceRole.Arn
+      Environment:
+        Variables:
+          BUCKET_NAME: !Ref WMGOutputBucket
+          DB_HOST: !GetAtt WMGDatabaseInstance.Endpoint.Address
+          DB_USER: !Ref WMGDatabaseClusterUsername
+          DB_SECRET_ARN: !Ref WMGDBSecret
+          DB_NAME: !Ref WMGDatabaseClusterDBName
+      Events:
+        GenerateCSV:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LambdasAuthAPI
+            Path: /campaigns-performance/{waba_id}
+            Method: post
+
+  # create VPC
+  WMGVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+        CidrBlock: 172.32.0.0/16
+        EnableDnsSupport: 'true'
+        EnableDnsHostnames: 'true'
+
+  # create subnets
+  WMGPrivateDBSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref WMGVPC
+      CidrBlock: 172.32.0.0/20
+      AvailabilityZone: !Select
+        - 0
+        - !GetAZs
+          Ref: 'AWS::Region'
+      Tags:
+        - Key: Name
+          Value: WMGPrivateDBSubnet1
+
+  WMGPrivateDBSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref WMGVPC
+      CidrBlock: 172.32.16.0/20
+      AvailabilityZone: !Select
+        - 1
+        - !GetAZs
+          Ref: 'AWS::Region'
+      Tags:
+      - Key: Name
+        Value: WMGPrivateDBSubnet2
+
+  WMGPrivateLambdaSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref WMGVPC
+      CidrBlock: 172.32.32.0/20
+      AvailabilityZone: !Select
+        - 0
+        - !GetAZs
+          Ref: 'AWS::Region'
+      Tags:
+      - Key: Name
+        Value: WMGPrivateLambdaSubnet1
+
+  WMGPrivateLambdaSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref WMGVPC
+      CidrBlock: 172.32.48.0/20
+      AvailabilityZone: !Select
+        - 1
+        - !GetAZs
+          Ref: 'AWS::Region'
+      Tags:
+      - Key: Name
+        Value: WMGPrivateLambdaSubnet2
+
+  WMGPublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref WMGVPC
+      CidrBlock: 172.32.64.0/20
+      AvailabilityZone: !Select
+        - 0
+        - !GetAZs
+          Ref: 'AWS::Region'
+      Tags:
+      - Key: Name
+        Value: WMGPublicSubnet1
+
+  WMGPublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref WMGVPC
+      CidrBlock: 172.32.80.0/20
+      AvailabilityZone: !Select
+        - 1
+        - !GetAZs
+          Ref: 'AWS::Region'
+      Tags:
+      - Key: Name
+        Value: WMGPublicSubnet2
+
+  # create and attach internet gateway
+  WMGInternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: WMGInternetGateway
+
+  WMGAttachInternetGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref WMGVPC
+      InternetGatewayId: !Ref WMGInternetGateway
+
+  # create route tables
+  WMGCustomRouteTable:
+    DependsOn: WMGAttachInternetGateway
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref WMGVPC
+      Tags:
+      - Key: Name
+        Value: WMGCustomRouteTable
+
+  WMGRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref WMGVPC
+      Tags:
+      - Key: Name
+        Value: WMGRouteTable
+
+ # attach route tables
+  WMGSubnetRouteTableAssociation1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref WMGPrivateDBSubnet1
+      RouteTableId: !Ref WMGRouteTable
+
+  WMGSubnetRouteTableAssociation2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref WMGPrivateDBSubnet2
+      RouteTableId: !Ref WMGRouteTable
+
+  WMGSubnetRouteTableAssociation3:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref WMGPrivateLambdaSubnet1
+      RouteTableId: !Ref WMGRouteTable
+
+  WMGSubnetRouteTableAssociation4:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref WMGPrivateLambdaSubnet2
+      RouteTableId: !Ref WMGRouteTable
+
+  # public subnets get attached to WMGCustomRouteTable
+  WMGSubnetRouteTableAssociation5:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref WMGPublicSubnet1
+      RouteTableId: !Ref WMGCustomRouteTable
+
+  WMGSubnetRouteTableAssociation6:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref WMGPublicSubnet2
+      RouteTableId: !Ref WMGCustomRouteTable
+
+  # create and attach NAT gateway
+  WMGNAT:
+    DependsOn: WMGVPC
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt [WMGEIP,AllocationId]
+      SubnetId: !Ref WMGPublicSubnet1
+
+  WMGEIP:
+    DependsOn: WMGAttachInternetGateway
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
+  # create routes
+  WMGRouteToNAT:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref WMGRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref WMGNAT
+
+  WMGRouteToInternet:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref WMGCustomRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref WMGInternetGateway
+
+  # create security groups
+  WMGRDSSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow My SQL access from lambda subnets
+      VpcId:
+        Ref: WMGVPC
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: '3306'
+        ToPort: '3306'
+        SourceSecurityGroupId : !Ref WMGLambdaSecurityGroup
+      Tags:
+      - Key: Name
+        Value: WMGRDSSecurityGroup
+
+  WMGLambdaSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for Lambda ENIs
+      VpcId:
+        Ref: WMGVPC
+      Tags:
+      - Key: Name
+        Value: WMGLambdaSecurityGroup
+
+  # Create Db subnet groups for RDS instance
+  WMGDBSubnetGroup:
+    Type: "AWS::RDS::DBSubnetGroup"
+    Properties:
+      DBSubnetGroupDescription: "description"
+      SubnetIds:
+        - !Ref WMGPrivateDBSubnet1
+        - !Ref WMGPrivateDBSubnet2
+      Tags:
+        -
+          Key: "Name"
+          Value: "WMGDBSubnetGroup"
+
+  WMGDBSecret:
+    Type: 'AWS::SecretsManager::Secret'
+    Properties:
+      Name: !Sub '${WMGDatabaseClusterDBName}-AuroraUserSecret-${AWS::StackName}'
+      Description: RDS database auto-generated user password
+      GenerateSecretString:
+        SecretStringTemplate: !Sub '{"username": "${WMGDatabaseClusterUsername}"}'
+        GenerateStringKey: password
+        PasswordLength: 30
+        ExcludeCharacters: '"@/\'
+
+  WMGDatabaseCluster:
+    Type: "AWS::RDS::DBCluster"
+    Properties:
+      MasterUsername: !Sub '{{resolve:secretsmanager:${WMGDBSecret}:SecretString:username}}'
+      MasterUserPassword: !Sub '{{resolve:secretsmanager:${WMGDBSecret}:SecretString:password}}'
+      DBClusterIdentifier:
+        Fn::Join:
+          - "-"
+          - - !Ref "AWS::StackName"
+            - "wmg-db-cluster"
+      DatabaseName: !Ref WMGDatabaseClusterDBName
+      Engine: "aurora-mysql"
+      DBSubnetGroupName: !Ref WMGDBSubnetGroup
+      VpcSecurityGroupIds:
+        - !Ref WMGRDSSecurityGroup
+  WMGDatabaseInstance:
+    Type: "AWS::RDS::DBInstance"
+    Properties:
+      DBClusterIdentifier:
+        Ref: WMGDatabaseCluster
+      DBInstanceClass: db.t3.medium
+      Engine: "aurora-mysql"
+
+  DBInitFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: 'Creates db tables schema on cfn stack creation'
+      Runtime: nodejs18.x
+      CodeUri: db_init
+      Handler: index.lambdaHandler
+      Architectures:
+        - x86_64
+      VpcConfig: # For accessing RDS instance
+        SecurityGroupIds:
+          - !Ref WMGLambdaSecurityGroup
+        SubnetIds:
+          - !Ref WMGPrivateLambdaSubnet1
+          - !Ref WMGPrivateLambdaSubnet2
+      Role: !GetAtt RDSAccessRole.Arn
+      Environment:
+        Variables:
+          DB_HOST: !GetAtt WMGDatabaseInstance.Endpoint.Address
+          DB_USER: !Ref WMGDatabaseClusterUsername
+          DB_SECRET_ARN: !Ref WMGDBSecret
+          DB_NAME: !Ref WMGDatabaseClusterDBName
+
+  DBInitCustomResource:
+    Type: 'Custom::LambdaRDS'
+    Properties:
+      ServiceToken: !GetAtt DBInitFunction.Arn
+      StackName: !Ref "AWS::StackName"
+
+#--- IAM Roles
+  RDSAccessRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: "Allow"
+            Principal:
+              Service:
+              - lambda.amazonaws.com
+            Action: "sts:AssumeRole"
+      Path: "/"
+      ManagedPolicyArns:
+        - !Ref RDSAccessPolicy
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+
+  RDSnSQSAccessRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: "Allow"
+            Principal:
+              Service:
+              - lambda.amazonaws.com
+            Action: "sts:AssumeRole"
+      Path: "/"
+      ManagedPolicyArns:
+        - !Ref RDSAccessPolicy
+        - !Ref SQSConsumePolicy
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+
+  RouterRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: "Allow"
+            Principal:
+              Service:
+              - lambda.amazonaws.com
+            Action: "sts:AssumeRole"
+      Path: "/"
+      ManagedPolicyArns:
+        - !Ref SQSWritePolicy
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+
+  CampaignsPerformanceRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: "Allow"
+            Principal:
+              Service:
+              - lambda.amazonaws.com
+            Action: "sts:AssumeRole"
+      Path: "/"
+      ManagedPolicyArns:
+        - !Ref RDSAccessPolicy
+        - !Ref S3WritePolicy
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+
+  RDSAccessPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: VisualEditor0
+            Effect: Allow
+            Action:
+              - secretsmanager:GetSecretValue
+            Resource:
+              - !Ref WMGDBSecret
+
+  SQSWritePolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: VisualEditor0
+            Effect: Allow
+            Action:
+              - sqs:SendMessage
+            Resource:
+              - !GetAtt SentMessageQueue.Arn
+
+  SQSConsumePolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: VisualEditor0
+            Effect: Allow
+            Action:
+              - sqs:ReceiveMessage
+              - sqs:DeleteMessage
+              - sqs:GetQueueAttributes
+            Resource:
+              - !GetAtt SentMessageQueue.Arn
+
+  S3WritePolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: My S3 Access Policy
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - s3:PutObject
+            Resource: !Sub "arn:aws:s3:::${WMGOutputBucket}/*"
+
+#---
+Outputs:
+  EndpointsBaseURL:
+    Description: "URL to prefix all endpoints"
+    Value:
+      Fn::Sub: "https://${LambdasAuthAPI}.execute-api.${AWS::Region}.amazonaws.com/Prod/"

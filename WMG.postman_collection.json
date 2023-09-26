@@ -1,0 +1,194 @@
+{
+	"info": {
+		"_postman_id": "de1c1bb0-8e30-483a-8968-05fd96454d43",
+		"name": "WMG",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "23919644"
+	},
+	"item": [
+		{
+			"name": "Get Keywords",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "WMG-Security-Token",
+						"value": "{{wmg_security_token}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{wmg_domain}}/keywords",
+					"host": [
+						"{{wmg_domain}}"
+					],
+					"path": [
+						"keywords"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Keyword by id",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "WMG-Security-Token",
+						"value": "{{wmg_security_token}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{wmg_domain}}/keywords/1",
+					"host": [
+						"{{wmg_domain}}"
+					],
+					"path": [
+						"keywords",
+						"1"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create Keywords",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "WMG-Security-Token",
+						"value": "{{wmg_security_token}}",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"keyword\": \"Thank you for your time\",\n    \"signal\": \"lead_complete\"\n}"
+				},
+				"url": {
+					"raw": "{{wmg_domain}}/keywords",
+					"host": [
+						"{{wmg_domain}}"
+					],
+					"path": [
+						"keywords"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Update Keywords",
+			"request": {
+				"method": "PUT",
+				"header": [
+					{
+						"key": "WMG-Security-Token",
+						"value": "{{wmg_security_token}}",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"keyword\": \"Wait a moment\",\n    \"signal\": \"lead_complete\"\n}"
+				},
+				"url": {
+					"raw": "{{wmg_domain}}/keywords/1",
+					"host": [
+						"{{wmg_domain}}"
+					],
+					"path": [
+						"keywords",
+						"1"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Router",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{wmg_security_token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "WMG-Security-Token",
+						"value": "{{wmg_security_token}}",
+						"type": "text",
+						"disabled": true
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"messaging_product\": \"whatsapp\",\n    \"recipient_type\": \"individual\",\n    \"to\": \"<PHONE_NUMBER>\",\n    \"type\": \"text\",\n    \"text\": { \n    \"preview_url\": false,\n    \"body\": \"Hello, what is your full name?\"\n    }\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{wmg_domain}}/<YOUR_PHONE_NUMBER_ID>/messages",
+					"host": [
+						"{{wmg_domain}}"
+					],
+					"path": [
+						"<YOUR_PHONE_NUMBER_ID>",
+						"messages"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Campaigns performance",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{whatsapp_cloud_api_token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "WMG-Security-Token",
+						"value": "{{wmg_security_token}}",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": ""
+				},
+				"url": {
+					"raw": "{{wmg_domain}}/campaigns-performance/{{wmg_waba_id}}?start_time=1&end_time=2147483647\n",
+					"host": [
+						"{{wmg_domain}}"
+					],
+					"path": [
+						"campaigns-performance",
+						"{{wmg_waba_id}}"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
