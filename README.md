@@ -3,7 +3,7 @@
 Serverless Application Model (SAM) project to deploy an AWS Cloudformation insfrastructure capable of measuring signals in WhatsApp conversations.
 
 <p align="center">
-  <img src="https://github.com/facebookexperimental/WMG/assets/9220147/dafd4670-f2dd-4100-8039-448bb3ac72c7" alt="WMG Overview"/>
+  <img src="https://github.com/facebookexperimental/WMG/assets/9220147/2f546d83-c88f-4c24-8af3-ac7b0c3203a3" alt="WMG Overview"/>
 </p>
 
 ## Setup
