@@ -22,7 +22,7 @@ export const lambdaHandler = async (event) => {
     policyDocument.Statement = [];
     const statement1 = {};
     statement1.Action = 'execute-api:Invoke';
-    statement1.Effect = token === SECURITY_TOKEN || alwaysAllow ? 'Allow' : 'Deny';
+    statement1.Effect = token === SECURITY_TOKEN ? 'Allow' : 'Deny';
     statement1.Resource = resource;
     policyDocument.Statement[0] = statement1;
     authResponse.policyDocument = policyDocument;
