@@ -17,34 +17,34 @@ let db_pass;
 
 AWS.config.update({ region: 'sa-east-1' });
 export const lambdaHandler = async (event, context) => {
-    const responseData = {};
-    let responseStatus = 'SUCCESS';
-    if (event.RequestType == 'Delete') {
-      await sendResponse(event, context, responseStatus, responseData);
-      return true;
-    }
+  const responseData = {};
+  let responseStatus = 'SUCCESS';
+  if (event.RequestType == 'Delete') {
+    await sendResponse(event, context, responseStatus, responseData);
+    return true;
+  }
 
-    let connection;
-    try {
-      db_pass = await getDatabasePassword();
-      connection = createConnection();
+  let connection;
+  try {
+    db_pass = await getDatabasePassword();
+    connection = createConnection();
 
-      console.info('Creating keywords table schema');
-      await queryDatabase(
-        connection,
-        `CREATE TABLE IF NOT EXISTS keywords (
+    console.info('Creating keywords table schema');
+    await queryDatabase(
+      connection,
+      `CREATE TABLE IF NOT EXISTS keywords (
           id INT AUTO_INCREMENT PRIMARY KEY,
           keyword VARCHAR(200) NOT NULL UNIQUE,
           \`signal\` VARCHAR(100) NOT NULL,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         )`
-      );
+    );
 
-      console.info('Creating signals table schema');
-      await queryDatabase(
-        connection,
-        `CREATE TABLE IF NOT EXISTS signals (
+    console.info('Creating signals table schema');
+    await queryDatabase(
+      connection,
+      `CREATE TABLE IF NOT EXISTS signals (
           id INT AUTO_INCREMENT PRIMARY KEY,
           keyword_id INT,
           business_phone_number_id VARCHAR(20) NOT NULL,
@@ -52,22 +52,36 @@ export const lambdaHandler = async (event, context) => {
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY (keyword_id) REFERENCES keywords(id)
         )`
-      );
-    } catch (error) {
-        console.error(error);
-        responseStatus = 'FAILED';
-    } finally {
-      // Close the database connection
-      if(connection) connection.destroy();
+    );
 
-      await sendResponse(event, context, responseStatus, responseData);
-    }
-    return true;
+    console.info('Creating audience rules table schema');
+    await queryDatabase(
+      connection,
+      `CREATE TABLE IF NOT EXISTS audience_rules (
+          id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+          name varchar(250) NOT NULL,
+          include JSON,
+          exclude JSON,
+          query varchar(500),
+          subscriber_list_id BIGINT,
+          creation_time timestamp not null default current_timestamp
+        )`
+    );
+  } catch (error) {
+    console.error(error);
+    responseStatus = 'FAILED';
+  } finally {
+    // Close the database connection
+    if (connection) connection.destroy();
+
+    await sendResponse(event, context, responseStatus, responseData);
+  }
+  return true;
 };
 
 // CloudFormation uses a pre-signed S3 URL to receive the response back from the custom resources managed by it. This is a simple function
 // which shall be used to send the response back to CFN custom resource by performing PUT request to the pre-signed S3 URL.
-async function sendResponse(event, context, responseStatus, responseData, physicalResourceId=null) {
+async function sendResponse(event, context, responseStatus, responseData, physicalResourceId = null) {
   const responseBody = JSON.stringify({
     Status: responseStatus,
     Reason: "See the details in CloudWatch Log Stream: " + context.logStreamName,
@@ -102,11 +116,11 @@ const queryDatabase = async (connection, queryStr, params) => {
   const queryAsync = promisify(connection.query).bind(connection);
 
   try {
-      const result = await queryAsync(queryStr, params);
-      return result;
+    const result = await queryAsync(queryStr, params);
+    return result;
   } catch (error) {
-      console.error(error);
-      throw error;
+    console.error(error);
+    throw error;
   }
 };
 
@@ -114,29 +128,29 @@ const queryDatabase = async (connection, queryStr, params) => {
 const createConnection = () => {
   console.info('Creating db connection');
   return mysql.createConnection({
-      host: db_host,
-      user: db_user,
-      password: db_pass,
-      database: db_name
+    host: db_host,
+    user: db_user,
+    password: db_pass,
+    database: db_name
   });
 };
 
 // Helper function to get the database password from AWS Secrets Manager
 const getDatabasePassword = async () => {
-    try {
-        console.info('Getting password');
-        const client = new AWS.SecretsManager();
-        const data = await client.getSecretValue({ SecretId: db_secret_arn }).promise();
-        console.info('Parsing password');
-        if ('SecretString' in data) {
-            const secret = JSON.parse(data.SecretString);
-            return secret.password;
-        } else {
-            const decodedBinarySecret = Buffer.from(data.SecretBinary, 'base64');
-            return decodedBinarySecret.toString();
-        }
-    } catch (error) {
-        console.error(error);
-        throw error;
+  try {
+    console.info('Getting password');
+    const client = new AWS.SecretsManager();
+    const data = await client.getSecretValue({ SecretId: db_secret_arn }).promise();
+    console.info('Parsing password');
+    if ('SecretString' in data) {
+      const secret = JSON.parse(data.SecretString);
+      return secret.password;
+    } else {
+      const decodedBinarySecret = Buffer.from(data.SecretBinary, 'base64');
+      return decodedBinarySecret.toString();
     }
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
 };
