@@ -62,11 +62,25 @@ export const lambdaHandler = async (event, context) => {
           name varchar(250) NOT NULL,
           include JSON,
           exclude JSON,
-          query varchar(500),
-          subscriber_list_id BIGINT,
+          query varchar(2000),
+          subscriber_list_id varchar(50),
           creation_time timestamp not null default current_timestamp
         )`
     );
+
+    console.info('Creating events schema');
+    await queryDatabase(
+      connection,
+      `CREATE TABLE IF NOT EXISTS events (
+          event_name varchar(250) NOT NULL,
+          event_time float,
+          user_name varchar(250) NOT NULL,
+          user_phone varchar(20) NOT NULL,
+          event_raw_data JSON
+          )`
+    );
+
+
   } catch (error) {
     console.error(error);
     responseStatus = 'FAILED';
