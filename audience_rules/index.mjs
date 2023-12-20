@@ -58,24 +58,21 @@ export const lambdaHandler = async (event, context) => {
             include = JSON.stringify(include);
             exclude = JSON.stringify(exclude);
 
-            const insert_query = 'INSERT INTO audience_rules (name, include, exclude, query) VALUES (?, ?, ?, ?)';
-            const result = await queryDatabase(connection, insert_query, [name, include, exclude, sql_query]);
-
             // Endpoint to trigger the subscriber list creation
             const createSubscriberListResponse = await createSubscriberList(name, su_access_token, wacs_id, ad_account_id);
             console.info('Create Subscriber List Response: ', createSubscriberListResponse);
 
-            const insertId = result.insertId;
+            const subscriber_list_id = createSubscriberListResponse.id;
 
-            // Update the Audience Rules table with the subscriber list ID
-            const update_query = 'UPDATE audience_rules SET subscriber_list_id = ? WHERE id = ?';
-            await queryDatabase(connection, update_query, [createSubscriberListResponse.id, insertId]);
+            const insert_query = 'INSERT INTO audience_rules (name, include, exclude, query, subscriber_list_id) VALUES (?, ?, ?, ?, ?)';
+            const result = await queryDatabase(connection, insert_query, [name, include, exclude, sql_query, subscriber_list_id]);
+            const insertId = result.insertId;
 
             // Select the newly inserted row and send it back as a response
             const select = 'SELECT * FROM audience_rules WHERE id = ?';
-            const updatedRule = await queryDatabase(connection, select, [insertId]);
+            const createdRule = await queryDatabase(connection, select, [insertId]);
 
-            return generateResponse(200, { updatedRule: updatedRule, subscriberList: createSubscriberListResponse });
+            return generateResponse(200, { createdRule: createdRule, subscriberList: createSubscriberListResponse });
 
         }
         else if (httpMethod === 'DELETE') {
@@ -130,9 +127,9 @@ const createSqlQueryForAudienceRule = (include, exclude) => {
 
     console.info(`Include Query: ${include_query}, Exclude Query: ${exclude_query}`);
 
-    sql_query += ` SELECT DISTINCT lie.phone_number FROM latest_inclusion_events AS lie `
-        + `LEFT JOIN latest_exclusion_events AS lee ON lie.phone_number = lee.phone_number `
-        + `WHERE lee.phone_number is NULL OR lie.event_time > lee.event_time;`
+    sql_query += ` SELECT DISTINCT lie.user_name, lie.user_phone FROM latest_inclusion_events AS lie `
+        + `LEFT JOIN latest_exclusion_events AS lee ON lie.user_phone = lee.user_phone `
+        + `WHERE lee.user_phone is NULL OR lie.event_time > lee.event_time;`
 
 
     console.info(`SQL Query: ${sql_query}`);
@@ -190,14 +187,14 @@ const generateRulesQuery = (rule) => {
     // REFERENCE:
     //
     // WITH
-    // latest_inclusion_events AS (SELECT user_name, phone_number, MAX(event_time) as event_time FROM events
+    // latest_inclusion_events AS (SELECT user_name, user_phone, MAX(event_time) as event_time FROM events
     // WHERE ((UNIX_TIMESTAMP(event_time) > (UNIX_TIMESTAMP(NOW()) - 1.296e+6) AND event_name = 'AddToCart')) GROUP BY 1, 2),
-    // latest_exclusion_events AS (SELECT user_name, phone_number, MAX(event_time) as event_time FROM events
+    // latest_exclusion_events AS (SELECT user_name, user_phone, MAX(event_time) as event_time FROM events
     // WHERE ((UNIX_TIMESTAMP(event_time) > (UNIX_TIMESTAMP(NOW()) - 864000) AND event_name = 'Purchase')) GROUP BY 1, 2)
-    // SELECT inclusion.user_name, inclusion.phone_number
+    // SELECT inclusion.user_name, inclusion.user_phone
     // FROM latest_inclusion_events inclusion
-    // LEFT JOIN latest_exclusion_events exclusion ON inclusion.phone_number = exclusion.phone_number
-    // WHERE exclusion.phone_number IS NULL OR inclusion.event_time > exclusion.event_time;
+    // LEFT JOIN latest_exclusion_events exclusion ON inclusion.user_phone = exclusion.user_phone
+    // WHERE exclusion.user_phone IS NULL OR inclusion.event_time > exclusion.event_time;
 
 
     // Please note: retention value needs to be in seconds
@@ -217,7 +214,7 @@ const generateRulesQuery = (rule) => {
     const conditionsStr = conditions.join(' OR ');
 
     // frame the SQL query
-    const query = `SELECT phone_number, MAX(event_time) as event_time FROM events WHERE (${conditionsStr}) GROUP BY 1`;
+    const query = `SELECT user_name, user_phone, MAX(event_time) as event_time FROM events WHERE (${conditionsStr}) GROUP BY 1, 2`;
 
     console.info(`Query: ${query}`);
 
