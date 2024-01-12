@@ -73,11 +73,26 @@ export const lambdaHandler = async (event, context) => {
       connection,
       `CREATE TABLE IF NOT EXISTS events (
           event_name varchar(250) NOT NULL,
-          event_time float,
+          event_time BIGINT,
           user_name varchar(250) NOT NULL,
           user_phone varchar(20) NOT NULL,
           event_raw_data JSON
           )`
+    );
+
+    // This schema helps to provide the mapping between the subscriber (user phone and name)
+    // and the subscriber list id.
+    // It will help us to identify the subscribers who are part of a list, and accordindly
+    // remove subscribers who are no longer part of the list.
+    console.info('Creating subscriber list schema');
+    await queryDatabase(
+      connection,
+      `CREATE TABLE IF NOT EXISTS subscriber_list (
+        user_name varchar(250) NOT NULL,
+        user_phone varchar(20) NOT NULL,
+        subscriber_list_id varchar(50),
+        PRIMARY KEY (subscriber_list_id, user_phone)
+        )`
     );
 
 

@@ -218,6 +218,48 @@ Resources:
             Path: /audience_rules
             Method: delete
 
+  ManageEventsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: 'API to inject events in Events table'
+      Runtime: nodejs18.x
+      CodeUri: events
+      Handler: index.lambdaHandler
+      Architectures:
+        - x86_64
+      VpcConfig: # For accessing RDS instance
+        SecurityGroupIds:
+          - !Ref WMGLambdaSecurityGroup
+        SubnetIds:
+          - !Ref WMGPrivateLambdaSubnet1
+          - !Ref WMGPrivateLambdaSubnet2
+      Role: !GetAtt RDSAccessRole.Arn
+      Environment:
+        Variables:
+          DB_HOST: !GetAtt WMGDatabaseInstance.Endpoint.Address
+          DB_USER: !Ref WMGDatabaseClusterUsername
+          DB_SECRET_ARN: !Ref WMGDBSecret
+          DB_NAME: !Ref WMGDatabaseClusterDBName
+      Events:
+        GetAllAudienceRules:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LambdasAuthAPI
+            Path: /events
+            Method: get
+        CreateAudienceRule:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LambdasAuthAPI
+            Path: /events
+            Method: post
+        DeleteAllAudienceRules:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LambdasAuthAPI
+            Path: /events
+            Method: delete
+
   CampaignsPerformanceFunction:
     Type: AWS::Serverless::Function
     Properties:
