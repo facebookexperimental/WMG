@@ -75,10 +75,20 @@ Resources:
       Handler: index.lambdaHandler
       Architectures:
         - x86_64
+      VpcConfig: # For accessing RDS instance
+        SecurityGroupIds:
+          - !Ref WMGLambdaSecurityGroup
+        SubnetIds:
+          - !Ref WMGPrivateLambdaSubnet1
+          - !Ref WMGPrivateLambdaSubnet2
       Role: !GetAtt RouterRole.Arn
       Environment:
         Variables:
           QUEUE_URL: !Ref SentMessageQueue
+          DB_HOST: !GetAtt WMGDatabaseInstance.Endpoint.Address
+          DB_USER: !Ref WMGDatabaseClusterUsername
+          DB_SECRET_ARN: !Ref WMGDBSecret
+          DB_NAME: !Ref WMGDatabaseClusterDBName
       Events:
         CloudAPIRouter:
           Type: Api
@@ -290,6 +300,49 @@ Resources:
             RestApiId: !Ref LambdasAuthAPI
             Path: /campaigns-performance/{waba_id}
             Method: post
+
+  ManageLiftStudies:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: 'API to manage Lift Studies'
+      Runtime: python3.11
+      CodeUri: lift_studies
+      Handler: lift_studies.lambda_handler
+      Architectures:
+        - x86_64
+      VpcConfig: # For accessing RDS instance
+        SecurityGroupIds:
+          - !Ref WMGLambdaSecurityGroup
+        SubnetIds:
+          - !Ref WMGPrivateLambdaSubnet1
+          - !Ref WMGPrivateLambdaSubnet2
+      Role: !GetAtt LiftStudiesRole.Arn
+      Environment:
+        Variables:
+          BUCKET_NAME: !Ref WMGOutputBucket
+          DB_HOST: !GetAtt WMGDatabaseInstance.Endpoint.Address
+          DB_USER: !Ref WMGDatabaseClusterUsername
+          DB_SECRET_ARN: !Ref WMGDBSecret
+          DB_NAME: !Ref WMGDatabaseClusterDBName
+      Events:
+        CreateLiftStudy:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LambdasAuthAPI
+            Path: /lift_studies
+            Method: post
+        GetLiftStudyResults:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LambdasAuthAPI
+            Path: /lift_studies/{id}/results
+            Method: get
+        PauseLiftStudy:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LambdasAuthAPI
+            Path: /lift_studies/{id}
+            Method: patch
 
   # create VPC
   WMGVPC:
@@ -631,6 +684,7 @@ Resources:
             Action: "sts:AssumeRole"
       Path: "/"
       ManagedPolicyArns:
+        - !Ref RDSAccessPolicy
         - !Ref SQSWritePolicy
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
         - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
@@ -651,6 +705,26 @@ Resources:
       ManagedPolicyArns:
         - !Ref RDSAccessPolicy
         - !Ref S3WritePolicy
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+
+  LiftStudiesRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: "Allow"
+            Principal:
+              Service:
+              - lambda.amazonaws.com
+            Action: "sts:AssumeRole"
+      Path: "/"
+      ManagedPolicyArns:
+        - !Ref RDSAccessPolicy
+        - !Ref S3WritePolicy
+        - !Ref S3GetObjectPolicy
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
         - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
 
@@ -705,6 +779,19 @@ Resources:
           - Effect: Allow
             Action:
               - s3:PutObject
+            Resource: !Sub "arn:aws:s3:::${WMGOutputBucket}/*"
+
+  S3GetObjectPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: My S3 Access Policy
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - s3:GetObject
+              - s3:ListBucket
             Resource: !Sub "arn:aws:s3:::${WMGOutputBucket}/*"
 
 #---

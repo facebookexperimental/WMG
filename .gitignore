@@ -134,3 +134,6 @@ dist
 .vscode/
 samconfig.toml
 .watchman-cookie*
+
+# python
+__pycache__

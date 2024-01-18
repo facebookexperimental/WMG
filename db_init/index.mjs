@@ -95,6 +95,32 @@ export const lambdaHandler = async (event, context) => {
         )`
     );
 
+    console.info('Creating lift studies table schema');
+    await queryDatabase(
+      connection,
+      `CREATE TABLE IF NOT EXISTS lift_studies (
+        id VARCHAR(255) PRIMARY KEY,
+        name VARCHAR(255),
+        start_date DATE,
+        end_date DATE,
+        sample_size INT,
+        control_group_size INT,
+        test_group_size INT,
+        messages_count INT,
+        avg_message_cost DOUBLE,
+        status VARCHAR(255)
+      )`
+    );
+
+    console.info('Creating lift studies groups table schema');
+    await queryDatabase(
+      connection,
+      `CREATE TABLE IF NOT EXISTS lift_studies_groups (
+        study_id VARCHAR(255),
+        phone_number INT,
+        group_name VARCHAR(255)
+      )`
+    );
 
   } catch (error) {
     console.error(error);
