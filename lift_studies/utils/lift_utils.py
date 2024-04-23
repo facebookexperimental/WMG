@@ -75,9 +75,10 @@ def get_conversion_results_for_group(valid_conversions, group_name, group_size):
         group_size (int): Number of customers in the group.
 
     Returns:
-        num_conversions (int): Number of conversions in the group.
-        conversion_rate (float): Conversion rate in the group.
-        conversion_rate_ci (float): Confidence interval for the conversion rate.
+        dict: Results for the group. Contains the following keys:
+            conversions (int): Number of conversions in the group.
+            conversion_rate (float): Conversion rate in the group.
+            confidence_interval (float): Confidence interval for the conversion rate.
     """
     # number of conversions in the group
     num_conversions = valid_conversions[
@@ -103,8 +104,8 @@ def calculate_lift(test_conversion_rate, control_conversion_rate):
     Calculate lift from incremental conversions and control conversions.
 
     Args:
-        incremental_conversions (int): Incremental conversions.
-        control_conversions (int): Control conversions.
+        test_conversion_rate (float): Conversions in test group divided by test group size.
+        control_conversion_rate (float): Conversions in control group divided by control group size.
 
     Returns:
         float: Lift.
@@ -183,9 +184,8 @@ def get_study_stats(valid_conversions, control_group_size, test_group_size):
     Returns:
         control_results (dict): Results for the control group.
         test_results (dict): Results for the test group.
-        p_value (float): P-value for the difference between conversion rates.
         lift_perc (float): Lift percentage.
-        cost_per_incremental_conv (float): Cost per incremental conversion.
+        p_value (float): P-value for the difference between conversion rates.
     """
     # calculate statistical results for each group
     control_results = get_conversion_results_for_group(

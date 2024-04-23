@@ -108,7 +108,7 @@ def lambda_handler(event, context):
 
 def create_lift_study(study_data):
     """
-    Create a new study.
+    Create a new lift study.
 
     Args:
         study_data (dict): Dictionary containing the study information.
@@ -143,13 +143,21 @@ def create_lift_study(study_data):
 
 def get_lift_study_results(study_id: str, conversion_event_name: str):
     """
-    Get results for a given study.
+    Get results for a given lift study.
+
+    Args:
+        study_id (str): ID of the study to get results for.
+        conversion_event_name (str): Name of the conversion event to get results for.
 
     Returns:
         results (dict): Results for the study.
     """
     # connect to the database
     db.connect(db_secret_arn, db_user, db_host, db_name)
+
+    # check if the study exists
+    assert db.exists_study_with_id(study_id), f"Study {study_id} does not exist."
+
     # create s3 handler object
     s3 = LiftS3Handler()
 
@@ -226,8 +234,8 @@ def get_lift_study_results(study_id: str, conversion_event_name: str):
             "confidence_interval"
         ],
         "lift": round(lift_perc, 4),
-        "cost_per_incremental_conversion": cost_per_incremental_conv,
-        "p_value": p_value,
+        "cost_per_incremental_conversion": round(cost_per_incremental_conv, 2),
+        "p_value": round(p_value, 4),
     }
 
     db.close()
@@ -237,14 +245,20 @@ def get_lift_study_results(study_id: str, conversion_event_name: str):
 
 def update_lift_study_data(study_id: str, request_data: dict):
     """
-    Update study data.
+    Update lift study data.
 
     Args:
         study_id (str): ID of the study to update.
         request_data (dict): Data to update.
+
+    Returns:
+        updated_fields (dict): Dictionary containing the updated fields.
     """
     # connect to the database
     db.connect(db_secret_arn, db_user, db_host, db_name)
+
+    # check if the study exists
+    assert db.exists_study_with_id(study_id), f"Study {study_id} does not exist."
 
     updated_fields = {}
 
@@ -281,14 +295,14 @@ def update_lift_study_data(study_id: str, request_data: dict):
 
 def abort(code, message):
     """
-    Return error code and message.
+    Format error code and message.
 
     Args:
         code (int): Error code.
         message (str): Error message.
 
     Returns:
-        None
+        response (dict): Response to be returned by the lambda function.
     """
     return {
         "statusCode": code,

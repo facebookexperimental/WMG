@@ -23,7 +23,7 @@ class LiftS3Handler:
             file_key (str): File key.
 
         Returns:
-            content (str): Content of the file.
+            data (str): Content of the file.
         """
         s3_object = self.client.get_object(Bucket=bucket, Key=file_key)
         data = s3_object["Body"].read().decode("utf-8")
@@ -34,8 +34,12 @@ class LiftS3Handler:
         """
         Read a file with conversion data from S3.
 
+        Args:
+            bucket (str): Bucket name.
+            file_key (str): File key.
+
         Returns:
-            df (pandas.DataFrame): DataFrame containing the conversion data.
+            conversions (pandas.DataFrame): DataFrame containing the conversion data.
         """
         data = self.read_file(bucket, file_key)
         conversions = pd.read_csv(StringIO(data))
@@ -53,12 +57,21 @@ class LiftDatabaseHandler:
         self.conn = None
 
     def __del__(self):
+        """
+        When the object is deleted, close the connection to the database if it exists.
+        """
         if getattr(self, "conn", None) is not None:
             self.close()
 
     def connect(self, db_secret_arn: str, db_user: str, db_host: str, db_name: str):
         """
         Open a connection to the database.
+
+        Args:
+            db_secret_arn (str): ARN of the secret containing the database password.
+            db_user (str): Username to connect to the database.
+            db_host (str): Hostname of the database.
+            db_name (str): Name of the database.
         """
         db_pass = self.get_database_password(db_secret_arn)
         self.conn = mysql.connector.connect(
@@ -73,6 +86,15 @@ class LiftDatabaseHandler:
 
     @staticmethod
     def get_database_password(db_secret_arn: str) -> str:
+        """
+        Get the password for the database.
+
+        Args:
+            db_secret_arn (str): ARN of the secret containing the database password.
+
+        Returns:
+            password (str): Password for the database.
+        """
         try:
             print("Getting password")
             client = boto3.client("secretsmanager", region_name="sa-east-1")
@@ -99,7 +121,7 @@ class LiftDatabaseHandler:
 
         Returns:
             result (tuple): Result of the query.
-            column_names (list): List of column names.
+            cols (list): List of column names.
         """
         cursor = self.conn.cursor()
         cursor.execute(query, params)
@@ -123,7 +145,7 @@ class LiftDatabaseHandler:
             filters (str): Filters to apply on the table.
 
         Returns:
-            result (pandas.DataFrame): DataFrame containing the data.
+            result_df (pandas.DataFrame): DataFrame containing the data.
         """
         query = f"SELECT * FROM {table}{f' WHERE {filters}' if filters else ''};"
         result, cursor_cols = self.execute_query(query)
@@ -173,3 +195,18 @@ class LiftDatabaseHandler:
         """
         query = f"UPDATE lift_studies SET {field}='{value}' WHERE id='{study_id}';"
         _, _ = self.execute_query(query, True)
+
+    def exists_study_with_id(self, study_id: str) -> bool:
+        """
+        Check if a study exists in the database.
+
+        Args:
+            study_id (str): Study ID.
+
+        Returns:
+            exists (bool): Whether or not the study exists.
+        """
+        query = f"SELECT EXISTS(SELECT 1 FROM lift_studies WHERE id='{study_id}');"
+        exists, _ = self.execute_query(query)
+
+        return bool(int(exists[0][0]))

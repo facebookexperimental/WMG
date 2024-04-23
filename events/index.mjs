@@ -135,7 +135,7 @@ const checkIfUserMatchesRule = async (connection, query, fn, ph) => {
     }
 }
 
-const isAlreadyHashed(input) {
+const isAlreadyHashed = (input) => {
     return input && (input.match('^[A-Fa-f0-9]{64}$') != null);
 }
 
