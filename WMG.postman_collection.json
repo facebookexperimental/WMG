@@ -189,6 +189,134 @@
 				}
 			},
 			"response": []
+		},
+		{
+			"name": "Create Lift Study",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "WMG-Security-Token",
+						"value": "{{wmg_security_token}}",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"name\": \"your lift study\",\n    \"start_date\": \"2024-01-01\",\n    \"end_date\": \"2024-01-31\",\n    \"sample_size\": 100\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{wmg_domain}}/lift_studies",
+					"host": [
+						"{{wmg_domain}}"
+					],
+					"path": [
+						"lift_studies"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Update Lift Study",
+			"request": {
+				"method": "PATCH",
+				"header": [
+					{
+						"key": "WMG-Security-Token",
+						"value": "{{wmg_security_token}}",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"status\": \"active\",\n    \"avg_message_cost\": 0.1\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{wmg_domain}}/lift_studies/<YOUR STUDY ID>",
+					"host": [
+						"{{wmg_domain}}"
+					],
+					"path": [
+						"lift_studies",
+						"<YOUR STUDY ID>"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Lift Study Results",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "WMG-Security-Token",
+						"value": "{{wmg_security_token}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{wmg_domain}}/lift_studies/<YOUR STUDY ID>/results?conversion_event=<YOUR CONVERSION EVENT NAME>",
+					"host": [
+						"{{wmg_domain}}"
+					],
+					"path": [
+						"lift_studies",
+						"<YOUR STUDY ID>",
+						"results"
+					],
+					"query": [
+						{
+							"key": "conversion_event",
+							"value": "<YOUR CONVERSION EVENT NAME>"
+						}
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "wmg_domain",
+			"value": "<host url>",
+			"type": "string"
+		},
+		{
+			"key": "wmg_security_token",
+			"value": "<password>",
+			"type": "string"
 		}
 	]
 }
