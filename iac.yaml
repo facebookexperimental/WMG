@@ -251,19 +251,19 @@ Resources:
           DB_SECRET_ARN: !Ref WMGDBSecret
           DB_NAME: !Ref WMGDatabaseClusterDBName
       Events:
-        GetAllAudienceRules:
+        GetAllEvents:
           Type: Api
           Properties:
             RestApiId: !Ref LambdasAuthAPI
             Path: /events
             Method: get
-        CreateAudienceRule:
+        CreateEvent:
           Type: Api
           Properties:
             RestApiId: !Ref LambdasAuthAPI
             Path: /events
             Method: post
-        DeleteAllAudienceRules:
+        DeleteAllEvents:
           Type: Api
           Properties:
             RestApiId: !Ref LambdasAuthAPI
