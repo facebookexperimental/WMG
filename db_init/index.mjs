@@ -117,7 +117,7 @@ export const lambdaHandler = async (event, context) => {
       connection,
       `CREATE TABLE IF NOT EXISTS lift_studies_groups (
         study_id VARCHAR(255),
-        phone_number INT,
+        phone_number VARCHAR(20),
         group_name VARCHAR(255)
       )`
     );
