@@ -1,0 +1,314 @@
+# openapi2-functions.yaml
+---
+swagger: '2.0'
+info:
+  title: First WMG API on GCP
+  description: Sample API on API Gateway with a Google Cloud Functions backend
+  version: 1.0.0
+schemes:
+  - https
+produces:
+  - application/json
+paths:
+  /initDB:
+    get:
+      summary: Create DB Tables
+      operationId: initDB
+      parameters:
+          - in: "header"
+            name: "x-api-key"
+            required: true
+            type: string
+      x-google-backend:
+        address: https://db-init-tr5jnsmsca-uc.a.run.app
+      security:
+        - api_key: []
+      responses:
+        '200':
+          description: Tables successfully created
+          schema:
+            type: string
+
+  /{business_phone_number_id}/messages:
+    post:
+      summary: Calls WA Cloud API and enqueues task
+      operationId: RouterWMG
+      parameters:
+          - in: "header"
+            name: "x-api-key"
+            required: true
+            type: string
+          - in: "path"
+            name: "business_phone_number_id"
+            required: true
+            type: string
+      x-google-backend:
+        address: https://router-tr5jnsmsca-uc.a.run.app
+      security:
+        - api_key: []
+      responses:
+        '200':
+          description: A successful response
+          schema:
+            type: string
+        '500':
+          description: WMG Internal Server Error
+          schema:
+            type: string
+
+  /keywords:
+    get:
+      summary: Read keywords in the table
+      operationId: ReadKeywordsWMG
+      parameters:
+          - in: "header"
+            name: "x-api-key"
+            required: true
+            type: string
+      x-google-backend:
+        address: https://manage-keywords-tr5jnsmsca-uc.a.run.app
+      security:
+        - api_key: []
+      responses:
+        '200':
+          description: A successful response
+          schema:
+            type: string
+        '500':
+          description: WMG Internal Server Error
+          schema:
+            type: string
+    post:
+      summary: Insert keyword in the table
+      operationId: InsertKeywordsWMG
+      parameters:
+          - in: "header"
+            name: "x-api-key"
+            required: true
+            type: string
+      x-google-backend:
+        address: https://manage-keywords-tr5jnsmsca-uc.a.run.app
+      security:
+        - api_key: []
+      responses:
+        '200':
+          description: A successful response
+          schema:
+            type: string
+        '500':
+          description: WMG Internal Server Error
+          schema:
+            type: string
+
+  /keywords/{id}:
+    get:
+      summary: Read keyword in the table by id
+      operationId: ReadAKeywordWMG
+      parameters:
+          - in: "header"
+            name: "x-api-key"
+            required: true
+            type: string
+          - in: "path"
+            name: "id"
+            required: true
+            type: string
+      x-google-backend:
+        address: https://manage-keywords-tr5jnsmsca-uc.a.run.app
+      security:
+        - api_key: []
+      responses:
+        '200':
+          description: A successful response
+          schema:
+            type: string
+        '500':
+          description: WMG Internal Server Error
+          schema:
+            type: string
+    put:
+      summary: Update keyword in the table by id
+      operationId: UpdateAKeywordWMG
+      parameters:
+          - in: "header"
+            name: "x-api-key"
+            required: true
+            type: string
+          - in: "path"
+            name: "id"
+            required: true
+            type: string
+      x-google-backend:
+        address: https://manage-keywords-tr5jnsmsca-uc.a.run.app
+      security:
+        - api_key: []
+      responses:
+        '200':
+          description: A successful response
+          schema:
+            type: string
+        '500':
+          description: WMG Internal Server Error
+          schema:
+            type: string
+
+  /campaigns-performance/{waba_id}:
+    post:
+      summary: Generate output file with campaigns performance info
+      operationId: CampaignsPerformanceWMG
+      parameters:
+          - in: "header"
+            name: "x-api-key"
+            required: true
+            type: string
+          - in: "path"
+            name: "waba_id"
+            required: true
+            type: string
+          - in: "query"
+            name: start_time
+            type: integer
+          - in: "query"
+            name: end_time
+            type: integer
+      x-google-backend:
+        address: https://campaigns-performance-tr5jnsmsca-uc.a.run.app
+      security:
+        - api_key: []
+      responses:
+        '200':
+          description: A successful response
+          schema:
+            type: string
+        '400':
+          description: Validation Error
+          schema:
+            type: string
+        '500':
+          description: WMG Internal Server Error
+          schema:
+            type: string
+
+  /lift-studies:
+    post:
+      summary: Create a lift study
+      operationId: createLiftStudyWMG
+      parameters:
+          - in: "header"
+            name: "x-api-key"
+            required: true
+            type: string
+      x-google-backend:
+        address: https://lift-studies-tr5jnsmsca-uc.a.run.app
+      security:
+        - api_key: []
+      responses:
+        '200':
+          description: A successful response
+          schema:
+            type: string
+        '500':
+          description: WMG Internal Server Error
+          schema:
+            type: string
+
+  /lift-studies/{id}:
+    patch:
+      summary: Update a lift study
+      operationId: UpdateLiftStudyWMG
+      parameters:
+          - in: "header"
+            name: "x-api-key"
+            required: true
+            type: string
+          - in: "path"
+            name: "id"
+            required: true
+            type: string
+      x-google-backend:
+        address: https://lift-studies-tr5jnsmsca-uc.a.run.app
+      security:
+        - api_key: []
+      responses:
+        '200':
+          description: A successful response
+          schema:
+            type: string
+        '500':
+          description: WMG Internal Server Error
+          schema:
+            type: string
+
+  /lift-studies/{id}/results:
+    get:
+      summary: Get lift study results
+      operationId: GetLiftStudyResultsWMG
+      parameters:
+          - in: "header"
+            name: "x-api-key"
+            required: true
+            type: string
+          - in: "path"
+            name: "id"
+            required: true
+            type: string
+      x-google-backend:
+        address: https://lift-studies-tr5jnsmsca-uc.a.run.app
+      security:
+        - api_key: []
+      responses:
+        '200':
+          description: A successful response
+          schema:
+            type: string
+        '500':
+          description: WMG Internal Server Error
+          schema:
+            type: string
+
+  /hello:
+    get:
+      summary: Greet a user
+      operationId: hello
+      parameters:
+          - in: "header"
+            name: "x-api-key"
+            required: true
+            type: string
+      x-google-backend:
+        #address: https://southamerica-east1-meta-be-gbg-latam-gcp-account.cloudfunctions.net/function-wmg
+        #address: https://us-central1-meta-be-gbg-latam-gcp-account.cloudfunctions.net/function-wmg
+        address: https://function-wmg-tr5jnsmsca-uc.a.run.app
+      security:
+        - api_key: []
+      responses:
+        '200':
+          description: A successful response
+          schema:
+            type: string
+    post:
+      summary: Greet a user
+      operationId: hello2
+      parameters:
+          - in: "header"
+            name: "x-api-key"
+            required: true
+            type: string
+      x-google-backend:
+        #address: https://southamerica-east1-meta-be-gbg-latam-gcp-account.cloudfunctions.net/function-wmg
+        #address: https://us-central1-meta-be-gbg-latam-gcp-account.cloudfunctions.net/function-wmg
+        address: https://function-wmg-tr5jnsmsca-uc.a.run.app
+      security:
+        - api_key: []
+      responses:
+        '200':
+          description: A successful response
+          schema:
+            type: string
+securityDefinitions:
+  # This section configures basic authentication with an API key.
+  api_key:
+    type: "apiKey"
+    name: "key"
+    in: "query"
+    #in: "header"

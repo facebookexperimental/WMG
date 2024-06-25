@@ -3,26 +3,28 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
-import AWS from 'aws-sdk';
+// [START cloud functions http trigger]
+import functions from '@google-cloud/functions-framework';
+import { Storage } from '@google-cloud/storage';
+import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
+
 import mysql from 'mysql';
 import { promisify } from 'util';
 import fetch from 'node-fetch';
 
-const db_host = process.env.DB_HOST;
+// Environment variables for database connection
+const db_socket = process.env.DB_HOST;
 const db_user = process.env.DB_USER;
-const db_secret_arn = process.env.DB_SECRET_ARN;
 const db_name = process.env.DB_NAME;
+const db_secret_name = process.env.DB_SECRET_NAME;
 let db_pass;
 
-AWS.config.update({ region: 'sa-east-1' });
-const s3 = new AWS.S3();
-
-export const lambdaHandler = async (event, context) => {
+functions.http('campaigns_performance_handler', async (event, response) => {
     let connection;
     try {
         // Extract and validate query parameters
         const { wabaId, startDate, endDate, startTimeUnix, endTimeUnix } = validateQueryParameters(event);
-        const accessToken = event.headers?.Authorization?.substring(7); // remove "Bearer " prefix;
+        const accessToken = event.headers?.['x-forwarded-authorization']?.substring(7); // remove "Bearer " prefix;
         console.info('Params: ', wabaId, startDate, endDate, startTimeUnix, endTimeUnix);
 
         db_pass = await getDatabasePassword();
@@ -74,43 +76,40 @@ export const lambdaHandler = async (event, context) => {
             csvContent += `${businessNumber || businessNumberId},${conversationCount},${signalValues.join(',')}\n`;
         });
 
-        // Upload CSV to S3
+        // Upload CSV to Cloud Storage
         const bucketName = process.env.BUCKET_NAME;
         const timestamp = new Date().toISOString().replace(/:/g, '-');
         const fileName = `wmg_campaigns_performance_${timestamp}.csv`;
-        console.info(`Uploading to S3 bucket ${bucketName} with name: ${fileName}`);
-        await s3.putObject({
-            Bucket: bucketName,
-            Key: fileName,
-            Body: csvContent
-        }).promise();
+        console.info(`Uploading to Cloud Storage bucket ${bucketName} with name: ${fileName}`);
+        await writeToBucket(bucketName, fileName, csvContent);
 
         // Return CSV content as response
-        return {
-            statusCode: 200,
-            headers: {
-                'Content-Type': 'text/csv',
-                'Content-Disposition': `attachment; filename="${fileName}"`
-            },
-            body: csvContent
-        };
+        response.setHeader('Content-Type', 'text/csv');
+        response.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+        response.statusCode = 200;
+        response.send(csvContent);
+        return;
     } catch (error) {
         console.error(error);
         if (error instanceof ValidationError) {
             // Return a 400 Bad Request error for validation errors
-            return {
-                statusCode: error.statusCode,
-                body: JSON.stringify({ message: 'Bad Request', error: error.message }),
-            };
+            response.setHeader('Content-Type', 'application/json');
+            response.statusCode = error.statusCode;
+            response.send(
+                JSON.stringify({ message: 'Bad Request', error: error.message })
+            );
+            return;
         } else {
             // Handle other types of errors
-            return {
-                statusCode: 500,
-                body: JSON.stringify({ message: 'Internal Server Error', error: error.message }),
-            };
+            response.setHeader('Content-Type', 'application/json');
+            response.statusCode = 500;
+            response.send(
+                JSON.stringify({ message: 'Internal Server Error', error: error.message })
+            );
+            return;
         }
     }
-};
+});
 
 class ValidationError extends Error {
     constructor(message) {
@@ -149,8 +148,8 @@ const validateQueryParameters = (event) => {
         }
     };
 
-    const queryParams = event.queryStringParameters || {};
-    const wabaId = event.pathParameters && event.pathParameters.waba_id;
+    const queryParams = event.query || {};
+    const wabaId = queryParams.waba_id;
     const startTimeUnix = queryParams.start_time;
     const endTimeUnix = queryParams.end_time;
 
@@ -197,20 +196,15 @@ const createConnection = () => {
     });
 };
 
-// Helper function to get the database password from AWS Secrets Manager
+// Helper function to get the database password from GCP Secret Manager
 const getDatabasePassword = async () => {
     try {
         console.info('Getting password');
-        const client = new AWS.SecretsManager();
-        const data = await client.getSecretValue({ SecretId: db_secret_arn }).promise();
+        const client = new SecretManagerServiceClient();
+        const [secret] = await client.accessSecretVersion({ name: db_secret_name, });
         console.info('Parsing password');
-        if ('SecretString' in data) {
-            const secret = JSON.parse(data.SecretString);
-            return secret.password;
-        } else {
-            const decodedBinarySecret = Buffer.from(data.SecretBinary, 'base64');
-            return decodedBinarySecret.toString();
-        }
+        const password = secret.payload.data.toString();
+        return password;
     } catch (error) {
         console.error(error);
         throw error;
@@ -223,7 +217,7 @@ const fetchConversationByBussinessNumber = async (accessToken, wabaId, startTime
         console.info('Fetching conversation analytics for waba ' + wabaId);
 
         // Set default values for startDate and endDate so that we bring all data
-        const defaultStartDate = 0; // Begining of time
+        const defaultStartDate = 0; // Beginning of time
         const defaultEndDate = Math.floor(Date.now() / 1000); // Current time in UNIX timestamp
         const apiUrl = `https://graph.facebook.com/v17.0/${wabaId}?access_token=${
                 accessToken
@@ -273,3 +267,9 @@ const fetchBusinnessNumbersById = async (accessToken, wabaId) => {
        return {};
     }
 }
+
+const writeToBucket = async (bucketName, fileName, data) => {
+    const storage = new Storage();
+    const bucket = storage.bucket(bucketName);
+    await bucket.file(fileName).save(data);
+};

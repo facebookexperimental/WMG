@@ -1,0 +1,17 @@
+{
+  "name": "wmg_router",
+  "description": "",
+  "version": "1.0.0",
+  "private": true,
+  "main": "index.mjs",
+  "dependencies": {
+    "@google-cloud/functions-framework": "^3.3.0",
+    "@google-cloud/secret-manager": "^5.0.0",
+    "@google-cloud/pubsub": "^4.0.0",
+    "node-fetch": "^2.3.0",
+    "mysql": "^2.18.1"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  }
+}
