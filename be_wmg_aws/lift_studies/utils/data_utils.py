@@ -12,7 +12,8 @@ class LiftS3Handler:
     """
 
     def __init__(self):
-        self.client = boto3.client("s3", region_name="sa-east-1")
+        self.region = os.environ['AWS_REGION']
+        self.client = boto3.client("s3", region_name=self.region)
 
     def read_file(self, bucket: str, file_key: str):
         """
@@ -97,7 +98,7 @@ class LiftDatabaseHandler:
         """
         try:
             print("Getting password")
-            client = boto3.client("secretsmanager", region_name="sa-east-1")
+            client = boto3.client("secretsmanager", region_name=self.region)
             data = client.get_secret_value(SecretId=db_secret_arn)
             print("Parsing password")
             if "SecretString" in data:
