@@ -171,7 +171,7 @@ resource "google_cloudfunctions2_function" "default-db-init" {
     vpc_connector                  = google_vpc_access_connector.connector-wmg.name
     ingress_settings               = "ALLOW_ALL"
     all_traffic_on_latest_revision = true
-    service_account_email          = "meta-be-gbg-latam-gcp-account@appspot.gserviceaccount.com"
+    service_account_email          = google_service_account.wmg-sa1.email
   }
 }
 
@@ -214,7 +214,7 @@ resource "google_cloudfunctions2_function" "default-router" {
     vpc_connector                  = google_vpc_access_connector.connector-wmg.name
     ingress_settings               = "ALLOW_ALL"
     all_traffic_on_latest_revision = true
-    service_account_email          = "meta-be-gbg-latam-gcp-account@appspot.gserviceaccount.com"
+    service_account_email          = google_service_account.wmg-sa1.email
   }
 }
 
@@ -256,7 +256,7 @@ resource "google_cloudfunctions2_function" "default-process-signals" {
     vpc_connector                  = google_vpc_access_connector.connector-wmg.name
     ingress_settings               = "ALLOW_INTERNAL_ONLY"
     all_traffic_on_latest_revision = true
-    service_account_email          = "meta-be-gbg-latam-gcp-account@appspot.gserviceaccount.com"
+    service_account_email          = google_service_account.wmg-sa1.email
   }
 
   event_trigger {
@@ -305,7 +305,7 @@ resource "google_cloudfunctions2_function" "default-manage-keywords" {
     vpc_connector                  = google_vpc_access_connector.connector-wmg.name
     ingress_settings               = "ALLOW_ALL"
     all_traffic_on_latest_revision = true
-    service_account_email          = "meta-be-gbg-latam-gcp-account@appspot.gserviceaccount.com"
+    service_account_email          = google_service_account.wmg-sa1.email
   }
 }
 
@@ -348,7 +348,7 @@ resource "google_cloudfunctions2_function" "default-campaigns-performance" {
     vpc_connector                  = google_vpc_access_connector.connector-wmg.name
     ingress_settings               = "ALLOW_ALL"
     all_traffic_on_latest_revision = true
-    service_account_email          = "meta-be-gbg-latam-gcp-account@appspot.gserviceaccount.com"
+    service_account_email          = google_service_account.wmg-sa1.email
   }
 }
 
@@ -391,47 +391,43 @@ resource "google_cloudfunctions2_function" "default-lift-studies" {
     vpc_connector                  = google_vpc_access_connector.connector-wmg.name
     ingress_settings               = "ALLOW_ALL"
     all_traffic_on_latest_revision = true
-    service_account_email          = "meta-be-gbg-latam-gcp-account@appspot.gserviceaccount.com"
+    service_account_email          = google_service_account.wmg-sa1.email
   }
 }
 // WMG
+
+// Create Service Account
+//https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/google_service_account
+resource "google_service_account" "wmg-sa1" {
+  account_id   = "test-topic-wmg-sa"
+  display_name = "Test Service Account for WMG"
+  description  = "You should manually give it permissions on GCP console..."
+}
 
 // Create IAM entry so all users can invoke the function
 //https://cloud.google.com/functions/docs/reference/iam/roles
 //https://console.cloud.google.com/run/detail/us-central1/function-wmg/security?authuser=1&project=meta-be-gbg-latam-gcp-account
 //Authentication: Allow unauthenticated invocations | Require authentication
 
+resource "google_project_iam_member" "editor_binding" {
+  project = local.project
+  role    = "roles/editor"
+  member  = "serviceAccount:${google_service_account.wmg-sa1.email}"
+}
+
 data "google_iam_policy" "invoker" {
   binding {
-    role = "roles/viewer"
+    role = "roles/secretmanager.secretAccessor"
     members = [
-      "allAuthenticatedUsers"
+      "serviceAccount:${google_service_account.wmg-sa1.email}",
     ]
   }
 }
 
-resource "google_cloudfunctions2_function_iam_policy" "policy" {
-  project        = google_cloudfunctions2_function.default.project
-  location       = google_cloudfunctions2_function.default.location
-  cloud_function = google_cloudfunctions2_function.default.name
-  policy_data    = data.google_iam_policy.invoker.policy_data
-}
-
-//https://cloud.google.com/billing/docs/reference/rest/v1/Policy#Binding
-data "google_iam_policy" "invoker2" {
-  binding {
-    role = "roles/run.invoker"
-    members = [
-      "allAuthenticatedUsers"
-    ]
-  }
-}
-
-resource "google_cloud_run_service_iam_policy" "policy2" {
-  location    = google_cloudfunctions2_function.default.location
-  project     = google_cloudfunctions2_function.default.project
-  service     = google_cloudfunctions2_function.default.name
-  policy_data = data.google_iam_policy.invoker2.policy_data
+resource "google_secret_manager_secret_iam_policy" "policy" {
+  project     = local.project
+  secret_id   = google_secret_manager_secret.wmg-db-secret.secret_id
+  policy_data = data.google_iam_policy.invoker.policy_data
 }
 
 //-----------------------------------------------------------------------------------------------------------------------------
@@ -478,14 +474,6 @@ resource "google_api_gateway_gateway" "wmg_gw" {
 // Topic
 //******
 // https://cloud.google.com/functions/docs/tutorials/terraform-pubsub
-
-//https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/google_service_account
-resource "google_service_account" "wmg-sa1" {
-  account_id   = "test-topic-wmg-sa"
-  display_name = "Test Service Account for WMG"
-  description  = "You should manually give it permissions on GCP console..."
-}
-
 resource "google_pubsub_topic" "wmg-topic" {
   name = "functions2-wmg-topic"
 
