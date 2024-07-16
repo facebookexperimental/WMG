@@ -27,6 +27,7 @@ Parameters:
     Type: String
     Default: ""
     Description: You must define a token that will need to be passed in the Authorization header when calling the APIs.
+    NoEcho: true
 
 #---
 Resources:
@@ -53,6 +54,13 @@ Resources:
               Header: WMG-Security-Token
               ReauthorizeEvery: 60
 
+  WMGSecurityTokenSecret:
+    Type: 'AWS::SecretsManager::Secret'
+    Properties:
+      Name: !Sub 'WMGSecurityTokenSecret-${AWS::StackName}'
+      Description: WMG Security Token set during deploy and used to authenticate API calls
+      SecretString: !Sub '{"WMGSecurityToken": "${WMGSecurityToken}"}'
+
   AuthFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -62,9 +70,10 @@ Resources:
       Handler: index.lambdaHandler
       Architectures:
         - x86_64
+      Role: !GetAtt SecurityTokenAccessRole.Arn
       Environment:
         Variables:
-          SECURITY_TOKEN: !Ref WMGSecurityToken
+          SECURITY_TOKEN_ARN: !Ref WMGSecurityTokenSecret
 
   RouterFunction:
     Type: AWS::Serverless::Function
@@ -727,6 +736,37 @@ Resources:
         - !Ref S3GetObjectPolicy
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
         - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+
+  SecurityTokenAccessRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: "Allow"
+            Principal:
+              Service:
+              - lambda.amazonaws.com
+            Action: "sts:AssumeRole"
+      Path: "/"
+      ManagedPolicyArns:
+        - !Ref SecurityTokenAccessPolicy
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+
+  SecurityTokenAccessPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: VisualEditor0
+            Effect: Allow
+            Action:
+              - secretsmanager:GetSecretValue
+            Resource:
+              - !Ref WMGSecurityTokenSecret
 
   RDSAccessPolicy:
     Type: AWS::IAM::ManagedPolicy
