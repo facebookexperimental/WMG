@@ -116,7 +116,7 @@
 					"bearer": [
 						{
 							"key": "token",
-							"value": "{{wmg_security_token}}",
+							"value": "{{whatsapp_cloud_api_token}}",
 							"type": "string"
 						}
 					]
@@ -316,6 +316,11 @@
 		{
 			"key": "wmg_security_token",
 			"value": "<password>",
+			"type": "string"
+		},
+		{
+			"key": "whatsapp_cloud_api_token",
+			"value": "<cloud api access token>",
 			"type": "string"
 		}
 	]
