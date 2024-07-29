@@ -67,6 +67,12 @@ Resources:
       DeadLetterQueue:
         Type: SQS
         TargetArn: !GetAtt DeadLetterQueueForLambdaFailures.Arn
+      Environment:
+        Variables:
+          DB_HOST: !GetAtt WMGDatabaseInstance.Endpoint.Address
+          DB_USER: !Ref WMGDatabaseClusterUsername
+          DB_SECRET_ARN: !Ref WMGDBSecret
+          DB_NAME: !Ref WMGDatabaseClusterDBName
 
   DeadLetterQueueForLambdaFailures:
     Type: AWS::SQS::Queue
