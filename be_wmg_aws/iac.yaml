@@ -45,6 +45,28 @@ Parameters:
     AllowedValues: [1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545, 731, 1827, 3653]
     ConstraintDescription: must select a valid retention value
     Type: String
+  CAPIGraphApiVersion:
+    Type: String
+    Default: "20.0"
+    Description: You must define the graph api version used to call CAPI.
+  CAPISecurityToken:
+    Type: String
+    Default: ""
+    Description: You must define a token that will need to be passed in the CAPI integration.
+    NoEcho: true
+  CAPIIntegrationEnabled:
+    Type: String
+    AllowedValues: [true, false]
+    Description: Flag to enable CAPI Integration
+  CAPIPageId:
+    Type: String
+    Default: ""
+    Description: Page id responisble for running CTWA events
+  CAPIDataSourceId:
+    Type: String
+    Default: ""
+    Description: Data source responsible for receiving business messaging signals
+
 #---
 Resources:
   # lambda for webhook processing
@@ -73,6 +95,11 @@ Resources:
           DB_USER: !Ref WMGDatabaseClusterUsername
           DB_SECRET_ARN: !Ref WMGDBSecret
           DB_NAME: !Ref WMGDatabaseClusterDBName
+          CAPI_INTEGRATION_ENABLED: !Ref CAPIIntegrationEnabled
+          CAPI_PAGE_ID: !Ref CAPIPageId
+          CAPI_DATASOURCE_ID: !Ref CAPIDataSourceId
+          CAPI_TOKEN_SECRET_ARN: !Ref CAPISecurityTokenSecret
+          CAPI_GRAPHAPI_VERSION: !Ref CAPIGraphApiVersion
 
   DeadLetterQueueForLambdaFailures:
     Type: AWS::SQS::Queue
@@ -232,6 +259,13 @@ Resources:
       Name: !Sub 'WMGSecurityTokenSecret-${AWS::StackName}'
       Description: WMG Security Token set during deploy and used to authenticate API calls
       SecretString: !Sub '{"WMGSecurityToken": "${WMGSecurityToken}"}'
+
+  CAPISecurityTokenSecret:
+    Type: 'AWS::SecretsManager::Secret'
+    Properties:
+      Name: !Sub 'CAPISecurityTokenSecret-${AWS::StackName}'
+      Description: CAPI Security Token set during deploy and used to authenticate API calls
+      SecretString: !Sub '{"CAPISecurityToken": "${CAPISecurityToken}"}'
 
   AuthFunction:
     Type: AWS::Serverless::Function
@@ -1020,6 +1054,7 @@ Resources:
               - secretsmanager:GetSecretValue
             Resource:
               - !Ref WMGDBSecret
+              - !Ref CAPISecurityTokenSecret
 
   SQSWritePolicy:
     Type: AWS::IAM::ManagedPolicy

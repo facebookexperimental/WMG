@@ -35,14 +35,22 @@ export const lambdaHandler = async (event, context) => {
             }
         } else if (httpMethod === 'POST') {
             console.info('Body:', event.body);
-            const {keyword, signal} = JSON.parse(event.body);
-            const result = await queryDatabase(connection, 'INSERT INTO keywords (keyword, `signal`) VALUES (?, ?)', [keyword, signal]);
-            return generateResponse(200, { id: result.insertId, keyword, signal });
+            const {keyword, signal, capi_event, capi_event_custom_data} = JSON.parse(event.body);
+            let capi_event_custom_data_string;
+            if (capi_event_custom_data) {
+                capi_event_custom_data_string = JSON.stringify(capi_event_custom_data);
+            }
+            const result = await queryDatabase(connection, 'INSERT INTO keywords (keyword, `signal` ,capi_event, capi_event_custom_data) VALUES (?, ?, ?, ?)', [keyword, signal, capi_event, capi_event_custom_data_string]);
+            return generateResponse(200, { id: result.insertId, keyword, signal, capi_event, capi_event_custom_data });
         } else if (httpMethod === 'PUT') {
             console.info('Body:', event.body, 'keyword_id: ', keyword_id);
-            const {keyword, signal} = JSON.parse(event.body);
-            await queryDatabase(connection, 'UPDATE keywords SET keyword=?, `signal`=? WHERE id=?', [keyword, signal, keyword_id]);
-            return generateResponse(200, { id: keyword_id, keyword, signal });
+            const {keyword, signal, capi_event, capi_event_custom_data} = JSON.parse(event.body);
+            let capi_event_custom_data_string;
+            if (capi_event_custom_data) {
+                capi_event_custom_data_string = JSON.stringify(capi_event_custom_data);
+            }
+            await queryDatabase(connection, 'UPDATE keywords SET keyword=?, `signal`=?, capi_event=?, capi_event_custom_data=? WHERE id=?', [keyword, signal, capi_event, capi_event_custom_data_string, keyword_id]);
+            return generateResponse(200, { id: keyword_id, keyword, signal, capi_event, capi_event_custom_data });
         } else {
             return generateResponse(405, { message: 'Method Not Allowed' });
         }

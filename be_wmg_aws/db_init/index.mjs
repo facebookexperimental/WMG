@@ -36,8 +36,24 @@ export const lambdaHandler = async (event, context) => {
           id INT AUTO_INCREMENT PRIMARY KEY,
           keyword VARCHAR(200) NOT NULL UNIQUE,
           \`signal\` VARCHAR(100) NOT NULL,
+          capi_event VARCHAR(100),
+          capi_event_custom_data varchar(2000),
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        )`
+    );
+
+    console.info('Creating capi_signals table schema');
+    await queryDatabase(
+      connection,
+      `CREATE TABLE IF NOT EXISTS capi_signals (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          business_phone_number_id VARCHAR(20) NOT NULL,
+          consumer_phone_number VARCHAR(20) NOT NULL,
+          ctwa_clid VARCHAR(200) NOT NULL,
+          source_id VARCHAR(200) NOT NULL,
+          raw_payload VARCHAR(2000) NOT NULL,
+          event_timestamp TIMESTAMP
         )`
     );
 
