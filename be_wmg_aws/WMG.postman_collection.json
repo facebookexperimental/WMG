@@ -285,6 +285,29 @@
 				}
 			},
 			"response": []
+		},
+		{
+			"name": "Get Capi Events",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "WMG-Security-Token",
+						"value": "{{wmg_security_token}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{wmg_domain}}/capi_events?limit=10&event_timestamp_after=12345",
+					"host": [
+						"{{wmg_domain}}"
+					],
+					"path": [
+						"capi_events"
+					]
+				}
+			},
+			"response": []
 		}
 	],
 	"event": [

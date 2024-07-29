@@ -23,7 +23,6 @@ const capi_graphapi_version = process.env.CAPI_GRAPHAPI_VERSION;
 let dbPass;
 let connection;
 
-AWS.config.update({ region: 'sa-east-1' });
 export const lambdaHandler = async (event, context) => {
     const httpMethod = event.httpMethod;
 
@@ -98,11 +97,9 @@ export const lambdaHandler = async (event, context) => {
         console.error(error);
         throw error;
     } finally {
-        console.info("Inside finally")
         if (connection) connection.destroy();
     }
 };
-
 
 const sendCapiEvent = async (eventName, capi_event_custom_data, businessNumberId, consumerNumber) => {
     const fetch_rules_query = `SELECT ctwa_clid, event_timestamp FROM capi_signals WHERE business_phone_number_id = ${businessNumberId} and consumer_phone_number = ${consumerNumber} order by event_timestamp desc limit 1`;

@@ -69,6 +69,38 @@ Parameters:
 
 #---
 Resources:
+
+  #lambda function to return business messaging signals
+  CapiIntegrationRulesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: 'API to get capi events'
+      Runtime: nodejs18.x
+      CodeUri: capi_integration
+      Handler: index.lambdaHandler
+      Architectures:
+        - x86_64
+      VpcConfig: # For accessing RDS instance
+        SecurityGroupIds:
+          - !Ref WMGLambdaSecurityGroup
+        SubnetIds:
+          - !Ref WMGPrivateLambdaSubnet1
+          - !Ref WMGPrivateLambdaSubnet2
+      Role: !GetAtt RDSAccessRole.Arn
+      Environment:
+        Variables:
+          DB_HOST: !GetAtt WMGDatabaseInstance.Endpoint.Address
+          DB_USER: !Ref WMGDatabaseClusterUsername
+          DB_SECRET_ARN: !Ref WMGDBSecret
+          DB_NAME: !Ref WMGDatabaseClusterDBName
+      Events:
+        GetAllAudienceRules:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LambdasAuthAPI
+            Path: /capi_events
+            Method: get
+
   # lambda for webhook processing
   WebhookProcessing:
     Type: AWS::Serverless::Function

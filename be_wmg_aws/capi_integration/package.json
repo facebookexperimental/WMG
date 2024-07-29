@@ -1,0 +1,14 @@
+{
+    "name": "capi_integration",
+    "description": "",
+    "version": "1.0.0",
+    "private": true,
+    "main": "index.mjs",
+    "dependencies": {
+      "aws-sdk": "^2.1433.0",
+      "mysql": "^2.18.1"
+    },
+    "scripts": {
+      "test": "echo \"Error: no test specified\" && exit 1"
+    }
+  }

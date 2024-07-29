@@ -114,7 +114,6 @@ export const lambdaHandler = async (event, context) => {
         console.error(error);
         return generateResponse(500, { message: 'Internal Server Error + ', error });
     } finally {
-        console.info("Inside finally")
         // Close the database connection
         if (connection) connection.destroy();
     }
