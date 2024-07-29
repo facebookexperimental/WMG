@@ -28,6 +28,16 @@ Parameters:
     Default: ""
     Description: You must define a token that will need to be passed in the Authorization header when calling the APIs.
     NoEcho: true
+  WebhookEndpointName:
+    Description: Examples are subscribe,subscribe-notifications, post-notifications,etc.
+    Type: String
+    Default: subscribe-notif
+    AllowedPattern: "[a-zA-Z][a-zA-Z0-9-]*"
+  WebhookStageName:
+    Description: Examples are v1,test,prod,etc.
+    Type: String
+    Default: v1
+    AllowedPattern: "[a-zA-Z][a-zA-Z0-9]*"
   WebhookLogRetentionDays:
     Default: '7'
     Description: Number of days to retain logs in CloudWatch
@@ -57,6 +67,7 @@ Resources:
       DeadLetterQueue:
         Type: SQS
         TargetArn: !GetAtt DeadLetterQueueForLambdaFailures.Arn
+
   DeadLetterQueueForLambdaFailures:
     Type: AWS::SQS::Queue
     Properties:
@@ -82,6 +93,109 @@ Resources:
     Properties:
       LogGroupName: !Join ['', ['/aws/lambda/', !Ref WebhookProcessing]]
       RetentionInDays: !Ref WebhookLogRetentionDays
+
+  SNSTopicForWABizNotifs:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: !Sub "${AWS::StackName}-SNSTopicForWABizNotifs"
+      TopicName: !Sub "${AWS::StackName}-SNSTopicForWABizNotifs"
+      Subscription:
+        - Endpoint: !GetAtt WebhookProcessing.Arn
+          Protocol: lambda
+
+  RestAPIForWABizNotifs:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      EndpointConfiguration:
+        Types:
+          - EDGE
+      Name: !Sub "${AWS::StackName}-RestAPIForWABizNotifs"
+
+  RestAPIEndPoint:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId:  !Ref RestAPIForWABizNotifs
+      ParentId: !GetAtt RestAPIForWABizNotifs.RootResourceId
+      PathPart: !Ref WebhookEndpointName
+
+  RestAPIStage:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      DeploymentId: !Ref RestAPIDeployment
+      MethodSettings:
+        - DataTraceEnabled: true
+          HttpMethod: '*'
+          LoggingLevel: INFO
+          ResourcePath: '/*'
+          MetricsEnabled: true
+      RestApiId: !Ref RestAPIForWABizNotifs
+      StageName: !Ref WebhookStageName
+
+  RestAPIDeployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn:
+      - EndpointPostMethod
+      - EndpointGetMethod
+    Properties:
+      RestApiId: !Ref RestAPIForWABizNotifs
+
+  EndpointPostMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: NONE
+      HttpMethod: POST
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS
+        PassthroughBehavior: NEVER
+        RequestTemplates: {
+            "application/json":
+            !Sub "Action=Publish&TopicArn=$util.urlEncode('arn:aws:sns:${AWS::Region}:${AWS::AccountId}:${SNSTopicForWABizNotifs.TopicName}')&Message=$util.urlEncode($input.body)"
+        }
+        RequestParameters: {
+          "integration.request.header.Content-Type": "'application/x-www-form-urlencoded'"
+        }
+        Credentials : !GetAtt RoleForWebhookAPIGateway.Arn
+        Uri:  !Sub "arn:aws:apigateway:${AWS::Region}:sns:path/${AWS::AccountId}/${SNSTopicForWABizNotifs.TopicName}"
+        IntegrationResponses:
+          - StatusCode: 200
+      ResourceId: !Ref RestAPIEndPoint
+      RestApiId: !Ref RestAPIForWABizNotifs
+      MethodResponses:
+        - StatusCode: 200
+
+  EndpointGetMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: NONE
+      HttpMethod: GET
+      Integration:
+        Type: MOCK
+        PassthroughBehavior: NEVER
+        Credentials : !GetAtt RoleForWebhookAPIGateway.Arn
+        RequestTemplates: {
+          "application/json": "{\n \"statusCode\": 200\n}"
+        }
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseTemplates:
+              application/json: $input.params()['querystring']['hub.challenge']
+      ResourceId: !Ref RestAPIEndPoint
+      RestApiId: !Ref RestAPIForWABizNotifs
+      MethodResponses:
+        - StatusCode: 200
+
+  RestAPICloudWatchLogs:
+    Type: 'AWS::ApiGateway::Account'
+    Properties:
+      CloudWatchRoleArn: !GetAtt RoleForWebhookAPIGateway.Arn
+
+  InvokeLambdaPermissionForSNS:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: 'lambda:InvokeFunction'
+      FunctionName: !Ref WebhookProcessing
+      Principal: sns.amazonaws.com
 
   # S3 to store csvs
   WMGOutputBucket:
@@ -740,6 +854,27 @@ Resources:
                   - "lambda:GetFunctionConfiguration"
                   - "lambda:UpdateFunctionConfiguration"
                 Resource: '*'
+  RoleForWebhookAPIGateway:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service: "apigateway.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      Policies:
+        - PolicyName: !Sub "${AWS::StackName}-APIGatewayWebhooksWABizPolicy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Action: "sns:Publish"
+                Effect: "Allow"
+                Resource: !Ref SNSTopicForWABizNotifs
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs"
 
   RDSAccessRole:
     Type: "AWS::IAM::Role"
@@ -942,3 +1077,12 @@ Outputs:
   WebhookProcessingArn:
     Description: Webhooks for WABiz Lambda
     Value: !GetAtt WebhookProcessing.Arn
+  SQSQueueNameOfDeadLetterQueueForLambdaFailures:
+    Description: "QueueName of DeadLetterQueueForLambdaFailures"
+    Value: !GetAtt DeadLetterQueueForLambdaFailures.QueueName
+  SNSTopicNameOfSNSTopicForWABizNotifs:
+    Description: "TopicName of SNS"
+    Value: !GetAtt SNSTopicForWABizNotifs.TopicName
+  WABizWebhooksURL:
+    Description: "Webhook Endpoint for WABiz"
+    Value: !Sub "https://${RestAPIForWABizNotifs}.execute-api.${AWS::Region}.amazonaws.com/${WebhookStageName}/${WebhookEndpointName}"
