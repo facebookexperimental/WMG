@@ -15,7 +15,6 @@ const db_secret_arn = process.env.DB_SECRET_ARN;
 const db_name = process.env.DB_NAME;
 let db_pass;
 
-AWS.config.update({ region: 'sa-east-1' });
 export const lambdaHandler = async (event, context) => {
   const responseData = {};
   let responseStatus = 'SUCCESS';

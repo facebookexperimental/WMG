@@ -16,7 +16,6 @@ const dbSecretArn = process.env.DB_SECRET_ARN;
 const db_name = process.env.DB_NAME;
 let dbPass;
 
-AWS.config.update({ region: 'sa-east-1' });
 const sqs = new AWS.SQS();
 export const lambdaHandler = async (event, context) => {
     let connection;
