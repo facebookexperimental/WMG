@@ -74,25 +74,53 @@ def lambda_handler(event, context):
             return abort(400, message=f"Error while creating lift study: {e}")
 
     elif http_method == "GET":
-        print("Getting Lift Study Results")
-        try:
-            assert study_id, "Study ID must be specified in the format /study/{id}"
-            assert (
-                conversion_event_name
-            ), "Conversion event name must be specified in the format conversion_event=<your event>"
+        if study_id:
+            print("Getting Lift Study Results")
+            try:
+                assert (
+                    conversion_event_name
+                ), "Conversion event name must be specified in the format conversion_event=<your event>"
 
-            results = get_lift_study_results(study_id, conversion_event_name)
+                results = get_lift_study_results(study_id, conversion_event_name)
 
-            return {
-                "statusCode": 200,
-                "headers": {"Content-Type": "application/json"},
-                "body": json.dumps(results),
-            }
-        except Exception as e:
-            return abort(
-                400,
-                message=f"Error while getting lift study results for study {study_id}: {e}",
-            )
+                return {
+                    "statusCode": 200,
+                    "headers": {"Content-Type": "application/json"},
+                    "body": json.dumps(results),
+                }
+            except Exception as e:
+                return abort(
+                    400,
+                    message=f"Error while getting lift study results for study {study_id}: {e}",
+                )
+        else:
+            print("Getting all Lift Studies")
+            try:
+                # connect to the database
+                db.connect(db_secret_arn, db_user, db_host, db_name)
+
+                # read all studies from the database
+                studies = db.read_table("lift_studies")
+                # format dates
+                studies["start_date"] = studies["start_date"].apply(
+                    lambda x: x.strftime("%Y-%m-%d")
+                )
+                studies["end_date"] = studies["end_date"].apply(
+                    lambda x: x.strftime("%Y-%m-%d")
+                )
+                # convert to json
+                studies_json = studies.to_json(orient="records")
+
+                # close the database connection
+                db.close()
+
+                return {
+                    "statusCode": 200,
+                    "headers": {"Content-Type": "application/json"},
+                    "body": studies_json,
+                }
+            except Exception as e:
+                return abort(400, message=f"Error while getting all lift studies: {e}")
 
     elif http_method == "PATCH":
         print("Updating Lift Study Status")

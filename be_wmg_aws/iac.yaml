@@ -578,6 +578,12 @@ Resources:
             RestApiId: !Ref LambdasAuthAPI
             Path: /lift_studies
             Method: post
+        GetAllLiftStudies:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LambdasAuthAPI
+            Path: /lift_studies
+            Method: get
         GetLiftStudyResults:
           Type: Api
           Properties:

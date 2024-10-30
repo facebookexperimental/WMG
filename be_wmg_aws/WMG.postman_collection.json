@@ -1,9 +1,9 @@
 {
 	"info": {
-		"_postman_id": "de1c1bb0-8e30-483a-8968-05fd96454d43",
+		"_postman_id": "576c80a2-cf94-4d21-9a78-ade21f1739ed",
 		"name": "WMG",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-		"_exporter_id": "23919644"
+		"_exporter_id": "31206317"
 	},
 	"item": [
 		{
@@ -304,6 +304,29 @@
 					],
 					"path": [
 						"capi_events"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get All Lift Studies",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "WMG-Security-Token",
+						"value": "{{wmg_security_token}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{wmg_domain}}/lift_studies",
+					"host": [
+						"{{wmg_domain}}"
+					],
+					"path": [
+						"lift_studies"
 					]
 				}
 			},
