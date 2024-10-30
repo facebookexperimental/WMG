@@ -4,6 +4,7 @@
 # LICENSE file in the root directory of this source tree.
 
 import json
+import os
 from io import StringIO
 
 import boto3
@@ -61,6 +62,7 @@ class LiftDatabaseHandler:
 
     def __init__(self):
         self.conn = None
+        self.region = os.environ["AWS_REGION"]  # noqa: F821
 
     def __del__(self):
         """
@@ -90,8 +92,7 @@ class LiftDatabaseHandler:
         """
         self.conn.close()
 
-    @staticmethod
-    def get_database_password(db_secret_arn: str) -> str:
+    def get_database_password(self, db_secret_arn: str) -> str:
         """
         Get the password for the database.
 
