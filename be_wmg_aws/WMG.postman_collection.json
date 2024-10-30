@@ -178,13 +178,25 @@
 					"raw": ""
 				},
 				"url": {
-					"raw": "{{wmg_domain}}/campaigns-performance/{{wmg_waba_id}}?start_time=1&end_time=2147483647\n",
+					"raw": "{{wmg_domain}}/campaigns-performance/{{wmg_waba_id}}",
 					"host": [
 						"{{wmg_domain}}"
 					],
 					"path": [
 						"campaigns-performance",
 						"{{wmg_waba_id}}"
+					],
+					"query": [
+						{
+							"key": "start_time",
+							"value": "YYYY-mm-dd",
+							"disabled": true
+						},
+						{
+							"key": "end_time",
+							"value": "YYYY-mm-dd",
+							"disabled": true
+						}
 					]
 				}
 			},
@@ -367,6 +379,11 @@
 		{
 			"key": "whatsapp_cloud_api_token",
 			"value": "<cloud api access token>",
+			"type": "string"
+		},
+		{
+			"key": "wmg_waba_id",
+			"value": "<waba id>",
 			"type": "string"
 		}
 	]

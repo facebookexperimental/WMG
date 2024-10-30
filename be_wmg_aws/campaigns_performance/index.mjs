@@ -52,7 +52,7 @@ export const lambdaHandler = async (event, context) => {
 
         // Prepare CSV header based on retrieved unique signal types
         const uniqueSignalTypesArray = [...uniqueSignalTypes];
-        const headerRow = ['Business Number', 'Conversations', ...uniqueSignalTypesArray].join(',') + '\n';
+        const headerRow = ['Business Number', 'From', 'To', 'Conversations', ...uniqueSignalTypesArray].join(',') + '\n';
 
         // Fetch conversation analytics and waba numbers
         const conversationsByBizNumber = await fetchConversationByBussinessNumber(accessToken, wabaId, startTimeUnix, endTimeUnix);
@@ -70,7 +70,7 @@ export const lambdaHandler = async (event, context) => {
                 : defaultValue;
 
             const signalValues = uniqueSignalTypesArray.map((signalType) => signalCounts[signalType] || 0);
-            csvContent += `${businessNumber || businessNumberId},${conversationCount},${signalValues.join(',')}\n`;
+            csvContent += `${businessNumber || businessNumberId},${startDate},${endDate},${conversationCount},${signalValues.join(',')}\n`;
         });
 
         // Upload CSV to S3
@@ -129,39 +129,83 @@ const validateQueryParameters = (event) => {
         }
     };
 
-    // Helper function to validate a parameter is a positive integer
-    const validateDate = (date, paramName) => {
-        const value = parseInt(date, 10);
-        if (date !== undefined && (isNaN(value) || value < 0)) {
-            throw new ValidationError(`Invalid ${paramName}: ${date}. It must be a unix timestamp.`);
+    const processStringDates = (startTimeStr, endTimeStr) => {
+        let startTimeUnix = 0;
+        let endTimeUnix = 0;
+        let startDate = null;
+        let endDate = null;
+
+        if (startTimeStr) {
+            startDate = new Date(startTimeStr);
+            startTimeUnix = startDate.getTime();
+            if (endTimeStr) {
+                console.info('Both start and end times are provided');
+                endDate = new Date(endTimeStr);
+                endTimeUnix = endDate.getTime();
+            }
+            else {
+                console.info('Only start time provided, using default window of 1 month from start time');
+                endDate = new Date(startTimeStr);
+                endDate.setMonth(endDate.getMonth() + 1);
+                endTimeUnix = endDate.getTime();
+            }
         }
+        else if (endTimeStr) {
+            console.info('Only end time provided, using default window of 1 month until end time');
+            endDate = new Date(endTimeStr);
+            endTimeUnix = endDate.getTime();
+
+            startDate = new Date(endTimeStr);
+            startDate.setMonth(startDate.getMonth() - 1);
+            startTimeUnix = startDate.getTime();
+        }
+        else {
+            console.info('No timestamps provided, using default window of 1 month ending at the current time');
+            // Set time window to the last month
+            endTimeUnix = Math.floor(Date.now());
+            endDate = new Date(endTimeUnix);
+
+            startDate = new Date(endTimeUnix);
+            startDate.setMonth(startDate.getMonth() - 1);
+            startTimeUnix = startDate.getTime();
+        }
+
+        // Convert unix timestamps from milliseconds to seconds
+        startTimeUnix = Math.floor(startTimeUnix / 1000);
+        endTimeUnix = Math.floor(endTimeUnix / 1000);
+
+        return { startTimeUnix, endTimeUnix, startDate, endDate };
     };
 
     // Helper function to validate that end_date is greater than start_date
     const validateDateRange = (startTime, endTime) => {
-        if (startTime && !endTime || !startTime && endTime) {
-            throw new ValidationError('You must provide both dates or none');
+        if (!startTime || !endTime) {
+            throw new ValidationError('Failed to validate date range. Make sure your start_time and end_time parameters are in one of the following formats: YYYY-MM-DD, YYYY/MM/DD');
         }
 
-        if (startTime && endTime && startTime >= endTime) {
+        if (startTime < 0 || endTime < 0) {
+            throw new ValidationError('Invalid date range: unix timestamps must be positive integers');
+        }
+
+        if (startTime >= endTime) {
             throw new ValidationError('Invalid date range: end_date must be greater than start_date');
         }
     };
 
     const queryParams = event.queryStringParameters || {};
     const wabaId = event.pathParameters && event.pathParameters.waba_id;
-    const startTimeUnix = queryParams.start_time;
-    const endTimeUnix = queryParams.end_time;
+    const startTimeParam = queryParams.start_time;
+    const endTimeParam = queryParams.end_time;
+
+    const { startTimeUnix, endTimeUnix, startDate, endDate } = processStringDates(startTimeParam, endTimeParam);
+
+    // Log the time window
+    console.info(`Time window: ${startDate.toISOString().slice(0, 10)} to ${endDate.toISOString().slice(0, 10)}`);
+    console.info(`Unix time window: ${startTimeUnix} to ${endTimeUnix}`);
 
     // Validate parameters
     validateWabaId(wabaId, 'waba_id');
-    validateDate(startTimeUnix, 'start_time');
-    validateDate(endTimeUnix, 'end_time');
     validateDateRange(startTimeUnix, endTimeUnix);
-
-    // Convert timestamps to Date objects
-    const startDate = startTimeUnix && new Date(parseInt(startTimeUnix, 10) * 1000);
-    const endDate = endTimeUnix && new Date(parseInt(endTimeUnix, 10) * 1000);
 
     return {
         wabaId,
@@ -221,14 +265,10 @@ const fetchConversationByBussinessNumber = async (accessToken, wabaId, startTime
     try {
         console.info('Fetching conversation analytics for waba ' + wabaId);
 
-        // Set default values for startDate and endDate so that we bring all data
-        const defaultStartDate = 0; // Beginning of time
-        const defaultEndDate = Math.floor(Date.now() / 1000); // Current time in UNIX timestamp
         const apiUrl = `https://graph.facebook.com/v17.0/${wabaId}?access_token=${
                 accessToken
-            }&fields=conversation_analytics.start(${
-                startTimeUnix || defaultStartDate
-            }).end(${endTimeUnix || defaultEndDate}).granularity(DAILY).dimensions(["PHONE"])`;
+            }&fields=conversation_analytics.start(${startTimeUnix}
+            ).end(${endTimeUnix}).granularity(DAILY).dimensions(["PHONE"])`;
         const response = await fetch(apiUrl);
         const data = await response.json();
         if (response.status !== 200) throw new Error(JSON.stringify(data));
