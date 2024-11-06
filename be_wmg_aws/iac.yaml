@@ -23,6 +23,12 @@ Parameters:
   WMGDatabaseClusterDBName:
     Type: String
     Default: wmgdb
+  WMGDatabaseBackupRetentionDays:
+    Type: Number
+    Description: Number of days to retain database backups
+    Default: 7
+    MinValue: 0
+    MaxValue: 35
   WMGSecurityToken:
     Type: String
     Default: ""
@@ -848,6 +854,7 @@ Resources:
       DBSubnetGroupName: !Ref WMGDBSubnetGroup
       VpcSecurityGroupIds:
         - !Ref WMGRDSSecurityGroup
+      BackupRetentionPeriod: !Ref WMGDatabaseBackupRetentionDays
   WMGDatabaseInstance:
     Type: "AWS::RDS::DBInstance"
     Properties:
