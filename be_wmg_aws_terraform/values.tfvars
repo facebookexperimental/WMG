@@ -1,0 +1,11 @@
+stack-name="rafael-stack-sa"
+aws_region="sa-east-1"
+EnableWMGVpc=false
+WMGPrivateDBSubnet1="subnet-04d15aacd698346a0"
+WMGPrivateDBSubnet2="subnet-03d6d44584a011568"
+WMGRDSSecurityGroup="sg-08840ed2931c1a502"
+WMGPrivateLambdaSubnet1="subnet-0d32604db19296b93"
+WMGPrivateLambdaSubnet2="subnet-04fc6352b59b35af3"
+WMGLambdaSecurityGroup="sg-07fc42ab1dac208bf"
+WMGSecurityToken="1234"
+CAPISecurityToken="1234"

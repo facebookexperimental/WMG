@@ -1,0 +1,59 @@
+# WhatsApp Measurement Gateway - AWS Terraform Setup
+
+## Terraform Setup
+
+### Requirements:
+- [terraform-cli] (https://developer.hashicorp.com/terraform/install?product_intent=terraform)
+- Node 18:
+  - Install nvm: `curl https://raw.githubusercontent.com/creationix/nvm/master/install.sh | bash`
+  - Make sure to set the environment variable with the command that is outputted by the previous step.
+  - Then you install Node: `nvm install 18`
+
+
+### Environment variables
+
+- **stack-name**
+  - **required**
+  - **Description:** Pre fixed name used on all resources created by this terraform
+- **aws_region**
+  - **required**
+  - **Description:** Region used to deploy the solution
+
+- **EnableWMGVpc**
+  - **type:** Boolean
+  - **required**
+  - **Description:** Flag to control if a new VPC will be created during the deployment
+  - **Example:** false
+  - **default:** true
+
+- **WMGPrivateDBSubnet1**
+  - **type:** string
+  - **optional**
+  - **Description:** Private network that will be used on all database instances
+  - **Example:** subnet-03d6d44584a011
+- **WMGPrivateDBSubnet2**
+  - **type:** string
+  - **optional**
+  - **Description:** Private network that will be used on all database instances
+  - **Example:** subnet-03d6d44584a012
+- **WMGRDSSecurityGroup**
+  - **type:** string
+  - **optional**
+  - **Description:** Security gorup used on database instances
+  - **Example:** sg-08840ed2931c1a502
+
+- **WMGSecurityToken**
+  - **type:** string
+  - **optional**
+  - **Description:** Access token that will be used to gake WMG's endpoints
+
+- **CAPISecurityToken**
+  - **type:** string
+  - **optional**
+  - **Description:** Meta's access token used on Convertion API integration
+
+
+### Deploy:
+- plan: `terraform plan`
+- apply: `terraform apply -var-file="values.tfvars"`
+- copy the outputted endpoint as it is going to be used in the next session (if you didn't copy you can still copy it visiting the Outputs tab in Cloudformation CLI)
