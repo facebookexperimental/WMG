@@ -77,9 +77,7 @@ def lambda_handler(event, context):
         if study_id:
             print("Getting Lift Study Results")
             try:
-                assert (
-                    conversion_event_name
-                ), "Conversion event name must be specified in the format conversion_event=<your event>"
+                assert conversion_event_name, "Conversion event name must be specified in the format conversion_event=<your event>"
 
                 results = get_lift_study_results(study_id, conversion_event_name)
 
