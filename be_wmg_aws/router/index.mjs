@@ -31,43 +31,49 @@ export const lambdaHandler = async (event, context) => {
             const activeStudyId = await getActiveStudyId(connection);
             if (activeStudyId != null) {
                 console.info('Active lift study found.');
-                // Check if the phone number is already assigned to a group
-                const phoneNumber = request_data.to;
-                let phoneGroup = await getPhoneGroup(connection, activeStudyId, phoneNumber);
-                if (phoneGroup == null) {
-                    console.info('Phone not assigned to any group.');
-                    // The phone number is not assigned to any group, check if both groups are available for assignment
-                    const groupsStatus = await getGroupsStatus(connection, activeStudyId);
-                    if (groupsStatus.control_full == 0 && groupsStatus.test_full == 0) {
-                        // Randomly assign the phone to either group
-                        const randomByte = crypto.randomBytes(1)[0];
-                        phoneGroup = randomByte < 128 ? 'test' : 'control';
-                        await assignPhoneToGroup(connection, activeStudyId, phoneNumber, phoneGroup);
-                        console.info('Phone randomly assigned to group: ' + phoneGroup);
+                // Check if this is an initial template for the active study
+                const templateName = request_data.template.name;
+                const lift_study_templates = await getStudyTemplates(connection, activeStudyId);
+                console.info('Checking if template ' + templateName + ' is in the study templates: ' + lift_study_templates.toString());
+                if (lift_study_templates.includes(templateName)) {
+                    // Check if the phone number is already assigned to a group
+                    const phoneNumber = request_data.to;
+                    let phoneGroup = await getPhoneGroup(connection, activeStudyId, phoneNumber);
+                    if (phoneGroup == null) {
+                        console.info('Phone not assigned to any group.');
+                        // The phone number is not assigned to any group, check if both groups are available for assignment
+                        const groupsStatus = await getGroupsStatus(connection, activeStudyId);
+                        if (groupsStatus.control_full == 0 && groupsStatus.test_full == 0) {
+                            // Randomly assign the phone to either group
+                            const randomByte = crypto.randomBytes(1)[0];
+                            phoneGroup = randomByte < 128 ? 'test' : 'control';
+                            await assignPhoneToGroup(connection, activeStudyId, phoneNumber, phoneGroup);
+                            console.info('Phone randomly assigned to group: ' + phoneGroup);
+                        }
+                        // If at least one group is full, check if only one group is full
+                        else if (groupsStatus.control_full == 0 || groupsStatus.test_full == 0) {
+                            // Only one group is full, assign the phone number to the other group
+                            phoneGroup = groupsStatus.control_full == 0 ? 'control' : 'test';
+                            await assignPhoneToGroup(connection, activeStudyId, phoneNumber, phoneGroup);
+                            console.info('Phone assigned to group: ' + phoneGroup);
+                        }
+                        // If both groups are full, none of the blocks above run and no group is assigned
                     }
-                    // If at least one group is full, check if only one group is full
-                    else if (groupsStatus.control_full == 0 || groupsStatus.test_full == 0) {
-                        // Only one group is full, assign the phone number to the other group
-                        phoneGroup = groupsStatus.control_full == 0 ? 'control' : 'test';
-                        await assignPhoneToGroup(connection, activeStudyId, phoneNumber, phoneGroup);
-                        console.info('Phone assigned to group: ' + phoneGroup);
-                    }
-                    // If both groups are full, none of the blocks above run and no group is assigned
-                }
 
-                if (phoneGroup == 'control') {
-                    // Drop the message if the phone group is control
-                    console.info('Message dropped: phone number in control group');
-                    return {
-                        statusCode: 200,
-                        headers: { 'Content-Type': 'text/plain' },
-                        body: 'Message dropped because the phone number is in control group',
-                    };
-                }
-                else if (phoneGroup == 'test'){
-                    // Increment the messages counter if the phone group is test
-                    await incrementMessagesCount(connection, activeStudyId);
-                    console.info('Incremented lift study messages count.');
+                    if (phoneGroup == 'control') {
+                        // Drop the message if the phone group is control
+                        console.info('Message dropped: phone number in control group');
+                        return {
+                            statusCode: 200,
+                            headers: { 'Content-Type': 'text/plain' },
+                            body: 'Message dropped because the phone number is in control group',
+                        };
+                    }
+                    else if (phoneGroup == 'test'){
+                        // Increment the messages counter if the phone group is test
+                        await incrementMessagesCount(connection, activeStudyId);
+                        console.info('Incremented lift study messages count.');
+                    }
                 }
             }
         }
@@ -131,6 +137,18 @@ const getActiveStudyId = async (connection) => {
 
     return activeStudy.length == 1 ? activeStudy[0].id : null;
 };
+
+// Helper function to get the list of templates for a given study
+const getStudyTemplates = async (connection, studyId) => {
+    const queryStr = `
+      SELECT template_names
+      FROM lift_studies
+      WHERE id = ?;
+    `;
+    const study_templates = await queryDatabase(connection, queryStr, [studyId]);
+
+    return study_templates.length == 1 ? study_templates[0].template_names.split(",") : [];
+}
 
 // Helper function to get the group of a given phone number for a given study
 const getPhoneGroup = async (connection, studyId, phoneNumber) => {
