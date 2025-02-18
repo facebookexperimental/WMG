@@ -19,7 +19,10 @@ const dbUpdates = {
   1: [
     "ALTER TABLE signals ADD COLUMN capi_event VARCHAR(100)",
     "ALTER TABLE signals ADD COLUMN capi_event_custom_data varchar(2000)",
-  ]
+  ],
+  2: [
+    "ALTER TABLE lift_studies ADD COLUMN template_names VARCHAR(2000)",
+  ],
 };
 
 export const lambdaHandler = async (event, context) => {
@@ -126,6 +129,7 @@ export const lambdaHandler = async (event, context) => {
         start_date DATE,
         end_date DATE,
         sample_size INT,
+        template_names VARCHAR(2000),
         control_group_size INT,
         test_group_size INT,
         messages_count INT,

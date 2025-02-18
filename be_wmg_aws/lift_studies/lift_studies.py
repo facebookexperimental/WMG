@@ -58,10 +58,20 @@ def lambda_handler(event, context):
     if http_method == "POST":
         print("Creating Lift Study")
         try:
-            required_fields = ["name", "start_date", "end_date", "sample_size"]
+            required_fields = [
+                "name",
+                "start_date",
+                "end_date",
+                "sample_size",
+                "template_names",
+            ]
             assert all(
                 field in request_data for field in required_fields
             ), "Missing required fields in request body."
+            assert all(
+                validate_template_name(tn)
+                for tn in request_data["template_names"].split(",")
+            ), "Template name must be composed by lowercase letters, numbers, and underscores."
 
             study_id = create_lift_study(request_data)
 
@@ -195,18 +205,15 @@ def get_lift_study_results(study_id: str, conversion_event_name: str):
     # get the study information
     try:
         study_df = db.read_table("lift_studies", filters=f"id = '{study_id}'")
-        (
-            _,
-            study_name,
-            start_date,
-            end_date,
-            sample_size,
-            control_group_size,
-            test_group_size,
-            num_msgs,
-            avg_msg_cost,
-            status,
-        ) = study_df.values[0]
+
+        study_name = study_df["name"].values[0]
+        start_date = study_df["start_date"].values[0]
+        end_date = study_df["end_date"].values[0]
+        sample_size = study_df["sample_size"].values[0]
+        control_group_size = study_df["control_group_size"].values[0]
+        test_group_size = study_df["test_group_size"].values[0]
+        num_msgs = study_df["messages_count"].values[0]
+        avg_msg_cost = study_df["avg_message_cost"].values[0]
 
         assert (
             control_group_size > 0 and test_group_size > 0
@@ -319,9 +326,23 @@ def update_lift_study_data(study_id: str, request_data: dict):
         db.update_lift_study_data(study_id, "avg_message_cost", float(new_avg_msg_cost))
         updated_fields["avg_message_cost"] = new_avg_msg_cost
 
+    if "template_names" in request_data:
+        new_templates = request_data["template_names"]
+        assert all(
+            validate_template_name(tn) for tn in new_templates.split(",")
+        ), "Template name must be composed by lowercase letters, numbers, and underscores."
+        db.update_lift_study_data(study_id, "template_names", new_templates)
+        updated_fields["template_names"] = new_templates
+
     db.close()
 
     return updated_fields
+
+
+def validate_template_name(template_name):
+    return (
+        template_name.replace("_", "").isalnum() and template_name.islower()
+    ) or template_name.isnumeric()
 
 
 def abort(code, message):
