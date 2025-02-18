@@ -17,6 +17,9 @@ Globals:
     Timeout: 30
 
 Parameters:
+  DeployDatetime:
+      Type: String
+      Default: today
   WMGDatabaseClusterUsername:
     Type: String
     Default: admin
@@ -62,7 +65,8 @@ Parameters:
     NoEcho: true
   CAPIIntegrationEnabled:
     Type: String
-    AllowedValues: [true, false]
+    Default: "false"
+    AllowedValues: ["true", "false"]
     Description: Flag to enable CAPI Integration
   CAPIPageId:
     Type: String
@@ -891,6 +895,7 @@ Resources:
     Properties:
       ServiceToken: !GetAtt DBInitFunction.Arn
       StackName: !Ref "AWS::StackName"
+      DeployTime: !Ref DeployDatetime
 
 #--- IAM Roles
   RoleForWebhookLambda:

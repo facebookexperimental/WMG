@@ -15,6 +15,13 @@ const db_secret_arn = process.env.DB_SECRET_ARN;
 const db_name = process.env.DB_NAME;
 let db_pass;
 
+const dbUpdates = {
+  1: [
+    "ALTER TABLE signals ADD COLUMN capi_event VARCHAR(100)",
+    "ALTER TABLE signals ADD COLUMN capi_event_custom_data varchar(2000)",
+  ]
+};
+
 export const lambdaHandler = async (event, context) => {
   const responseData = {};
   let responseStatus = 'SUCCESS';
@@ -137,6 +144,31 @@ export const lambdaHandler = async (event, context) => {
       )`
     );
 
+    const latest_db_version = getLatestDBVersion()
+    console.info('Creating db version table schema');
+    await queryDatabase(
+      connection,
+      `CREATE TABLE IF NOT EXISTS db_version (
+        version INT NOT NULL PRIMARY KEY,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`
+    );
+    await queryDatabase(
+      connection,
+      `INSERT INTO db_version (version)
+        SELECT ?
+        WHERE NOT EXISTS (SELECT * FROM db_version)`,
+      [latest_db_version]
+    );
+
+    const current_db_version = await getCurrentDBVersion(connection);
+    if (current_db_version < latest_db_version) {
+      console.info("Updating db from version " + current_db_version + " to version " + latest_db_version);
+      await updateDatabase(connection, current_db_version, latest_db_version);
+    } else {
+      console.info("No need to update db, current version is " + current_db_version);
+    }
+
   } catch (error) {
     console.error(error);
     responseStatus = 'FAILED';
@@ -223,4 +255,40 @@ const getDatabasePassword = async () => {
     console.error(error);
     throw error;
   }
+};
+
+// Function to get the latest version of the database based on the dbUpdates object
+function getLatestDBVersion() {
+  return Object.keys(dbUpdates).sort().pop() || 0;
+};
+
+// Function to get the current version of the database based on the db_version table
+const getCurrentDBVersion = async (connection) => {
+  const queryStr = "SELECT MAX(version) AS version FROM db_version";
+
+  const result = await queryDatabase(connection, queryStr);
+  return parseInt(result[0].version);
+};
+
+// Function to update the database based on the dbUpdates object
+const updateDatabase = async (connection, currentVersion, latestVersion) => {
+  const queryAsync = promisify(connection.query).bind(connection);
+
+  for (let i = currentVersion + 1; i <= latestVersion; i++) {
+    let updates = dbUpdates[i];
+    try {
+      await connection.beginTransaction();
+      for (let update_query of updates) {
+        console.info(`Running update ${i}: ${update_query}`);
+        await queryAsync(update_query);
+      }
+      await connection.commit();
+      await queryDatabase(connection, "INSERT INTO db_version (version) VALUES (?)", [i]);
+      console.info(`Update ${i} completed`);
+    } catch (error) {
+      console.error(`Rolling back update ${i}`);
+      await connection.rollback();
+      throw error;
+    };
+  };
 };
