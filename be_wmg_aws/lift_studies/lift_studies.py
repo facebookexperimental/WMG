@@ -193,16 +193,16 @@ def get_lift_study_results(study_id: str, conversion_event_name: str):
     Returns:
         results (dict): Results for the study.
     """
-    # connect to the database
+    print("Connecting to database")
     db.connect(db_secret_arn, db_user, db_host, db_name)
 
-    # check if the study exists
+    print("Checking if study exists")
     assert db.exists_study_with_id(study_id), f"Study {study_id} does not exist."
 
     # create s3 handler object
     s3 = LiftS3Handler()
 
-    # get the study information
+    print("Fetching study data")
     try:
         study_df = db.read_table("lift_studies", filters=f"id = '{study_id}'")
 
@@ -222,14 +222,20 @@ def get_lift_study_results(study_id: str, conversion_event_name: str):
         raise Exception(f"Error while fetching data for study {study_id}.", e)
 
     try:
+        print("Reading conversions from events.csv file in S3")
         conversions = s3.get_conversions_from_s3(bucket_name, "events.csv")
 
-        # get the study groups
+        print("Reading study groups table")
         study_groups = db.read_table(
             "lift_studies_groups", filters=f"study_id = '{study_id}'"
         )
         study_groups = study_groups[["phone_number", "group_name"]]
+        # normalize phone numbers to include digits only
+        study_groups.loc[:, "phone_number"] = study_groups["phone_number"].str.replace(
+            r"[^0-9]", "", regex=True
+        )
 
+        print("Filtering valid conversions")
         valid_conversions = filter_conversions(
             conversions, start_date, end_date, conversion_event_name, study_groups
         )
@@ -242,6 +248,7 @@ def get_lift_study_results(study_id: str, conversion_event_name: str):
         )
 
     try:
+        print("Calculating metrics")
         (control_results, test_results, lift_perc, p_value) = get_study_stats(
             valid_conversions, control_group_size, test_group_size
         )
@@ -260,20 +267,22 @@ def get_lift_study_results(study_id: str, conversion_event_name: str):
         "name": study_name,
         "start_date": start_date.strftime("%Y-%m-%d"),
         "end_date": end_date.strftime("%Y-%m-%d"),
-        "sample_size": sample_size,
-        "test_num_conversions": test_results["conversions"],
-        "test_group_size": test_group_size,
-        "test_conversion_rate": round(test_results["conversion_rate"], 4),
-        "test_conversion_rate_confidence_interval": test_results["confidence_interval"],
-        "control_num_conversions": control_results["conversions"],
-        "control_group_size": control_group_size,
-        "control_conversion_rate": round(control_results["conversion_rate"], 4),
-        "control_conversion_rate_confidence_interval": control_results[
-            "confidence_interval"
-        ],
-        "lift": round(lift_perc, 4),
-        "cost_per_incremental_conversion": round(cost_per_incremental_conv, 2),
-        "p_value": round(p_value, 4),
+        "sample_size": str(sample_size),
+        "test_num_conversions": str(test_results["conversions"]),
+        "test_group_size": str(test_group_size),
+        "test_conversion_rate": str(round(test_results["conversion_rate"], 4)),
+        "test_conversion_rate_confidence_interval": str(
+            test_results["confidence_interval"]
+        ),
+        "control_num_conversions": str(control_results["conversions"]),
+        "control_group_size": str(control_group_size),
+        "control_conversion_rate": str(round(control_results["conversion_rate"], 4)),
+        "control_conversion_rate_confidence_interval": str(
+            control_results["confidence_interval"]
+        ),
+        "lift": str(round(lift_perc, 4)),
+        "cost_per_incremental_conversion": str(round(cost_per_incremental_conv, 2)),
+        "p_value": str(round(p_value, 4)),
     }
 
     db.close()

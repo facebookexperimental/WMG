@@ -51,6 +51,10 @@ class LiftS3Handler:
         data = self.read_file(bucket, file_key)
         conversions = pd.read_csv(StringIO(data))
         conversions["event_time"] = pd.to_datetime(conversions["event_time"])
+        # normalize phone numbers to include digits only
+        conversions["user_phone"] = (
+            conversions["user_phone"].astype(str).str.replace(r"[^0-9]", "", regex=True)
+        )
 
         return conversions
 
