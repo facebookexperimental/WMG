@@ -65,13 +65,15 @@ def lambda_handler(event, context):
                 "sample_size",
                 "template_names",
             ]
-            assert all(
-                field in request_data for field in required_fields
-            ), "Missing required fields in request body."
+            assert all(field in request_data for field in required_fields), (
+                "Missing required fields in request body."
+            )
             assert all(
                 validate_template_name(tn)
                 for tn in request_data["template_names"].split(",")
-            ), "Template name must be composed by lowercase letters, numbers, and underscores."
+            ), (
+                "Template name must be composed by lowercase letters, numbers, and underscores."
+            )
 
             study_id = create_lift_study(request_data)
 
@@ -87,7 +89,9 @@ def lambda_handler(event, context):
         if study_id:
             print("Getting Lift Study Results")
             try:
-                assert conversion_event_name, "Conversion event name must be specified in the format conversion_event=<your event>"
+                assert conversion_event_name, (
+                    "Conversion event name must be specified in the format conversion_event=<your event>"
+                )
 
                 results = get_lift_study_results(study_id, conversion_event_name)
 
@@ -215,9 +219,9 @@ def get_lift_study_results(study_id: str, conversion_event_name: str):
         num_msgs = study_df["messages_count"].values[0]
         avg_msg_cost = study_df["avg_message_cost"].values[0]
 
-        assert (
-            control_group_size > 0 and test_group_size > 0
-        ), "Group sizes must be greater than 0."
+        assert control_group_size > 0 and test_group_size > 0, (
+            "Group sizes must be greater than 0."
+        )
     except Exception as e:
         raise Exception(f"Error while fetching data for study {study_id}.", e)
 
@@ -323,9 +327,9 @@ def update_lift_study_data(study_id: str, request_data: dict):
             or (new_status == "paused" and active_study_id != study_id)
         ):
             if new_status == "active":
-                assert (
-                    active_study_id is None
-                ), "There is already an active study running."
+                assert active_study_id is None, (
+                    "There is already an active study running."
+                )
 
             db.update_lift_study_data(study_id, "status", new_status)
             updated_fields["status"] = new_status
@@ -337,9 +341,9 @@ def update_lift_study_data(study_id: str, request_data: dict):
 
     if "template_names" in request_data:
         new_templates = request_data["template_names"]
-        assert all(
-            validate_template_name(tn) for tn in new_templates.split(",")
-        ), "Template name must be composed by lowercase letters, numbers, and underscores."
+        assert all(validate_template_name(tn) for tn in new_templates.split(",")), (
+            "Template name must be composed by lowercase letters, numbers, and underscores."
+        )
         db.update_lift_study_data(study_id, "template_names", new_templates)
         updated_fields["template_names"] = new_templates
 

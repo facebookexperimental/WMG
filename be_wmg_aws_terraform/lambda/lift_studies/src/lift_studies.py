@@ -59,9 +59,9 @@ def lambda_handler(event, context):
         print("Creating Lift Study")
         try:
             required_fields = ["name", "start_date", "end_date", "sample_size"]
-            assert all(
-                field in request_data for field in required_fields
-            ), "Missing required fields in request body."
+            assert all(field in request_data for field in required_fields), (
+                "Missing required fields in request body."
+            )
 
             study_id = create_lift_study(request_data)
 
@@ -77,7 +77,9 @@ def lambda_handler(event, context):
         print("Getting Lift Study Results")
         try:
             assert study_id, "Study ID must be specified in the format /study/{id}"
-            assert conversion_event_name, "Conversion event name must be specified in the format conversion_event=<your event>"
+            assert conversion_event_name, (
+                "Conversion event name must be specified in the format conversion_event=<your event>"
+            )
 
             results = get_lift_study_results(study_id, conversion_event_name)
 
@@ -180,9 +182,9 @@ def get_lift_study_results(study_id: str, conversion_event_name: str):
             status,
         ) = study_df.values[0]
 
-        assert (
-            control_group_size > 0 and test_group_size > 0
-        ), "Group sizes must be greater than 0."
+        assert control_group_size > 0 and test_group_size > 0, (
+            "Group sizes must be greater than 0."
+        )
     except Exception as e:
         raise Exception(f"Error while fetching data for study {study_id}.", e)
 
@@ -279,9 +281,9 @@ def update_lift_study_data(study_id: str, request_data: dict):
             or (new_status == "paused" and active_study_id != study_id)
         ):
             if new_status == "active":
-                assert (
-                    active_study_id is None
-                ), "There is already an active study running."
+                assert active_study_id is None, (
+                    "There is already an active study running."
+                )
 
             db.update_lift_study_data(study_id, "status", new_status)
             updated_fields["status"] = new_status
