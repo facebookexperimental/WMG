@@ -4,7 +4,7 @@ resource "null_resource" "process_signals_lambda_dependencies" {
   }
 
   triggers = {
-    index = sha256(file("${path.module}/process_signals/src/index.mjs"))
+    index   = sha256(file("${path.module}/process_signals/src/index.mjs"))
     package = sha256(file("${path.module}/process_signals/src/package.json"))
   }
 }
@@ -19,7 +19,7 @@ data "null_data_source" "process_signals_wait_for_lambda_exporter" {
 
 data "archive_file" "process_signals_lambda" {
   output_path = "${path.module}/process_signals/lambda-bundle.zip"
-  source_dir  = "${data.null_data_source.process_signals_wait_for_lambda_exporter.outputs["source_dir"]}"
+  source_dir  = data.null_data_source.process_signals_wait_for_lambda_exporter.outputs["source_dir"]
   type        = "zip"
 }
 
@@ -34,8 +34,8 @@ resource "aws_lambda_function" "process_signals" {
   timeout          = 300
 
   vpc_config {
-    security_group_ids = [ var.WMGLambdaSecurityGroup ]
-    subnet_ids         = [ var.WMGPrivateLambdaSubnet1,  var.WMGPrivateLambdaSubnet2]
+    security_group_ids = [var.WMGLambdaSecurityGroup]
+    subnet_ids         = [var.WMGPrivateLambdaSubnet1, var.WMGPrivateLambdaSubnet2]
   }
 
   environment {

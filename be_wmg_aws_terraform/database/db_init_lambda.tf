@@ -4,7 +4,7 @@ resource "null_resource" "db_init_lambda_dependencies" {
   }
 
   triggers = {
-    index = sha256(file("${path.module}/db_init/src/index.mjs"))
+    index   = sha256(file("${path.module}/db_init/src/index.mjs"))
     package = sha256(file("${path.module}/db_init/src/package.json"))
   }
 }
@@ -19,7 +19,7 @@ data "null_data_source" "db_init_wait_for_lambda_exporter" {
 
 data "archive_file" "db_init_lambda" {
   output_path = "${path.module}/db_init/lambda-bundle.zip"
-  source_dir  = "${data.null_data_source.db_init_wait_for_lambda_exporter.outputs["source_dir"]}"
+  source_dir  = data.null_data_source.db_init_wait_for_lambda_exporter.outputs["source_dir"]
   type        = "zip"
 }
 
@@ -34,16 +34,16 @@ resource "aws_lambda_function" "db_init" {
   timeout          = 300
 
   vpc_config {
-    security_group_ids = [ var.WMGLambdaSecurityGroup ]
-    subnet_ids         = [ var.WMGPrivateLambdaSubnet1,  var.WMGPrivateLambdaSubnet2]
+    security_group_ids = [var.WMGLambdaSecurityGroup]
+    subnet_ids         = [var.WMGPrivateLambdaSubnet1, var.WMGPrivateLambdaSubnet2]
   }
 
   environment {
     variables = {
-      DB_HOST = aws_rds_cluster.default.endpoint
-      DB_NAME = aws_rds_cluster.default.database_name
+      DB_HOST       = aws_rds_cluster.default.endpoint
+      DB_NAME       = aws_rds_cluster.default.database_name
       DB_SECRET_ARN = aws_secretsmanager_secret.dbcreds.arn
-      DB_USER = aws_rds_cluster.default.master_username
+      DB_USER       = aws_rds_cluster.default.master_username
     }
   }
   depends_on = [
@@ -67,15 +67,15 @@ data "aws_iam_policy_document" "assume_role" {
 }
 
 resource "aws_iam_policy" "lambda_db_logging_policy" {
-  name   = "${var.stack_name}-lambda_db_log_policy"
+  name = "${var.stack_name}-lambda_db_log_policy"
   policy = jsonencode({
     "Version" : "2012-10-17",
     "Statement" : [
       {
         Action : [
-            "logs:CreateLogStream",
-            "logs:CreateLogGroup",
-            "logs:PutLogEvents"
+          "logs:CreateLogStream",
+          "logs:CreateLogGroup",
+          "logs:PutLogEvents"
         ],
         Effect : "Allow",
         Resource : "arn:aws:logs:${local.region}:${local.account_id}:*"
@@ -85,21 +85,21 @@ resource "aws_iam_policy" "lambda_db_logging_policy" {
 }
 
 resource "aws_iam_policy" "lambda_secret_manager_policy" {
-  name   = "${var.stack_name}-lambda_secret_manager_policy"
+  name = "${var.stack_name}-lambda_secret_manager_policy"
   policy = jsonencode({
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Action": [
-                "secretsmanager:GetSecretValue"
-            ],
-            "Resource": [
-                "${aws_secretsmanager_secret.dbcreds.arn}",
-            ],
-            "Effect": "Allow"
-        }
+    "Version" : "2012-10-17",
+    "Statement" : [
+      {
+        "Action" : [
+          "secretsmanager:GetSecretValue"
+        ],
+        "Resource" : [
+          "${aws_secretsmanager_secret.dbcreds.arn}",
+        ],
+        "Effect" : "Allow"
+      }
     ]
-})
+  })
 }
 
 
@@ -110,12 +110,12 @@ resource "aws_iam_role" "lambda_role" {
 }
 
 resource "aws_iam_role_policy_attachment" "function_db_secret_manager_attachment" {
-  role = aws_iam_role.lambda_role.id
+  role       = aws_iam_role.lambda_role.id
   policy_arn = aws_iam_policy.lambda_secret_manager_policy.arn
 }
 
 resource "aws_iam_role_policy_attachment" "function_db_logging_policy_attachment" {
-  role = aws_iam_role.lambda_role.id
+  role       = aws_iam_role.lambda_role.id
   policy_arn = aws_iam_policy.lambda_db_logging_policy.arn
 }
 
@@ -124,7 +124,7 @@ data "aws_iam_policy" "DbAWSLambdaVPCAccessExecutionRole" {
 }
 
 resource "aws_iam_role_policy_attachment" "DbAWSLambdaVPCAccessExecutionRole-attach" {
-  role       =  aws_iam_role.lambda_role.id
+  role       = aws_iam_role.lambda_role.id
   policy_arn = data.aws_iam_policy.DbAWSLambdaVPCAccessExecutionRole.arn
 }
 
@@ -142,10 +142,10 @@ resource "aws_lambda_invocation" "example" {
   })
 
   depends_on = [
-      aws_lambda_function.db_init,
-      aws_rds_cluster.default,
-      aws_rds_cluster_instance.example,
-      aws_secretsmanager_secret.dbcreds,
-      aws_secretsmanager_secret_version.secret_credentials,
+    aws_lambda_function.db_init,
+    aws_rds_cluster.default,
+    aws_rds_cluster_instance.example,
+    aws_secretsmanager_secret.dbcreds,
+    aws_secretsmanager_secret_version.secret_credentials,
   ]
 }

@@ -4,7 +4,7 @@ resource "null_resource" "campaigns_performance_lambda_dependencies" {
   }
 
   triggers = {
-    index = sha256(file("${path.module}/campaigns_performance/src/index.mjs"))
+    index   = sha256(file("${path.module}/campaigns_performance/src/index.mjs"))
     package = sha256(file("${path.module}/campaigns_performance/src/package.json"))
   }
 }
@@ -19,7 +19,7 @@ data "null_data_source" "campaigns_performance_wait_for_lambda_exporter" {
 
 data "archive_file" "campaigns_performance_lambda" {
   output_path = "${path.module}/campaigns_performance/lambda-bundle.zip"
-  source_dir  = "${data.null_data_source.campaigns_performance_wait_for_lambda_exporter.outputs["source_dir"]}"
+  source_dir  = data.null_data_source.campaigns_performance_wait_for_lambda_exporter.outputs["source_dir"]
   type        = "zip"
 }
 
@@ -34,8 +34,8 @@ resource "aws_lambda_function" "campaigns_performance" {
   timeout          = 300
 
   vpc_config {
-    security_group_ids = [ var.WMGLambdaSecurityGroup ]
-    subnet_ids         = [ var.WMGPrivateLambdaSubnet1,  var.WMGPrivateLambdaSubnet2]
+    security_group_ids = [var.WMGLambdaSecurityGroup]
+    subnet_ids         = [var.WMGPrivateLambdaSubnet1, var.WMGPrivateLambdaSubnet2]
   }
 
   environment {

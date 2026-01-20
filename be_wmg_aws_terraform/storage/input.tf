@@ -1,3 +1,3 @@
 variable "stack_name" {
-    type = string
+  type = string
 }

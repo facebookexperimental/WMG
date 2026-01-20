@@ -1,9 +1,9 @@
 resource "aws_api_gateway_authorizer" "demo" {
-  name                   = "${var.stack_name}-authorizer"
-  rest_api_id            = aws_api_gateway_rest_api.example.id
-  authorizer_uri         = var.authorizer_lambda.invoke_arn
-#   authorizer_credentials = aws_iam_role.invocation_role.arn
-  identity_source = "method.request.header.WMG-Security-Token"
+  name           = "${var.stack_name}-authorizer"
+  rest_api_id    = aws_api_gateway_rest_api.example.id
+  authorizer_uri = var.authorizer_lambda.invoke_arn
+  #   authorizer_credentials = aws_iam_role.invocation_role.arn
+  identity_source                  = "method.request.header.WMG-Security-Token"
   authorizer_result_ttl_in_seconds = 10
 
 }
@@ -44,7 +44,7 @@ resource "aws_iam_role_policy" "invocation_policy" {
 resource "aws_lambda_permission" "apigw_authorizer" {
   statement_id  = "AllowAPIGatewayInvoke"
   action        = "lambda:InvokeFunction"
-  function_name = "${var.authorizer_lambda.function_name}"
+  function_name = var.authorizer_lambda.function_name
   principal     = "apigateway.amazonaws.com"
 
   source_arn = "${aws_api_gateway_rest_api.example.execution_arn}/*/*"

@@ -1,21 +1,21 @@
 variable "stack_name" {
-    type = string
+  type = string
 }
 
 variable "WMGDatabaseClusterUsername" {
-    type = string
+  type = string
 }
 
 variable "WMGDatabaseClusterDBName" {
-    type = string
+  type = string
 }
 
 variable "WMGPrivateDBSubnet1" {
-    type = string
+  type = string
 
 }
 variable "WMGPrivateDBSubnet2" {
-    type = string
+  type = string
 }
 
 variable "WMGRDSSecurityGroup" {
@@ -23,11 +23,11 @@ variable "WMGRDSSecurityGroup" {
 }
 
 variable "WMGPrivateLambdaSubnet1" {
-    type = string
+  type = string
 
 }
 variable "WMGPrivateLambdaSubnet2" {
-    type = string
+  type = string
 }
 
 variable "WMGLambdaSecurityGroup" {

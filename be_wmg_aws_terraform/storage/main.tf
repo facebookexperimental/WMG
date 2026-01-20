@@ -3,6 +3,6 @@ resource "aws_s3_bucket" "wmg_bucket" {
   force_destroy = true
 
   tags = {
-    Name        = "${var.stack_name}-wmg-bucket-output"
+    Name = "${var.stack_name}-wmg-bucket-output"
   }
 }

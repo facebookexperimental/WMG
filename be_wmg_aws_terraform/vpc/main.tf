@@ -14,8 +14,8 @@ resource "aws_vpc" "main" {
 
 
 resource "aws_subnet" "WMGPrivateDBSubnet1" {
-  vpc_id     = aws_vpc.main.id
-  cidr_block = "172.32.0.0/20"
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = "172.32.0.0/20"
   availability_zone = data.aws_availability_zones.available.names[0]
 
 
@@ -25,8 +25,8 @@ resource "aws_subnet" "WMGPrivateDBSubnet1" {
 }
 
 resource "aws_subnet" "WMGPrivateDBSubnet2" {
-  vpc_id     = aws_vpc.main.id
-  cidr_block = "172.32.16.0/20"
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = "172.32.16.0/20"
   availability_zone = data.aws_availability_zones.available.names[1]
 
 
@@ -36,8 +36,8 @@ resource "aws_subnet" "WMGPrivateDBSubnet2" {
 }
 
 resource "aws_subnet" "WMGPrivateLambdaSubnet1" {
-  vpc_id     = aws_vpc.main.id
-  cidr_block = "172.32.32.0/20"
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = "172.32.32.0/20"
   availability_zone = data.aws_availability_zones.available.names[0]
 
 
@@ -47,8 +47,8 @@ resource "aws_subnet" "WMGPrivateLambdaSubnet1" {
 }
 
 resource "aws_subnet" "WMGPrivateLambdaSubnet2" {
-  vpc_id     = aws_vpc.main.id
-  cidr_block = "172.32.48.0/20"
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = "172.32.48.0/20"
   availability_zone = data.aws_availability_zones.available.names[1]
 
 
@@ -58,8 +58,8 @@ resource "aws_subnet" "WMGPrivateLambdaSubnet2" {
 }
 
 resource "aws_subnet" "WMGPublicSubnet1" {
-  vpc_id     = aws_vpc.main.id
-  cidr_block = "172.32.64.0/20"
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = "172.32.64.0/20"
   availability_zone = data.aws_availability_zones.available.names[0]
 
 
@@ -69,8 +69,8 @@ resource "aws_subnet" "WMGPublicSubnet1" {
 }
 
 resource "aws_subnet" "WMGPublicSubnet2" {
-  vpc_id     = aws_vpc.main.id
-  cidr_block = "172.32.80.0/20"
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = "172.32.80.0/20"
   availability_zone = data.aws_availability_zones.available.names[1]
 
 
@@ -109,7 +109,7 @@ resource "aws_route_table" "WMGRouteTable" {
   vpc_id = aws_vpc.main.id
 
   route {
-    cidr_block = "0.0.0.0/0"
+    cidr_block     = "0.0.0.0/0"
     nat_gateway_id = aws_nat_gateway.WMGNAT.id
   }
 
@@ -164,7 +164,7 @@ resource "aws_nat_gateway" "WMGNAT" {
 }
 
 resource "aws_eip" "WMGEIP" {
-  domain   = "vpc"
+  domain = "vpc"
 }
 
 

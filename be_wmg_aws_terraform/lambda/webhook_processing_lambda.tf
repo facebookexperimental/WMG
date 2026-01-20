@@ -4,7 +4,7 @@ resource "null_resource" "webhook_lambda_dependencies" {
   }
 
   triggers = {
-    index = sha256(file("${path.module}/webhook_processing/src/index.mjs"))
+    index   = sha256(file("${path.module}/webhook_processing/src/index.mjs"))
     package = sha256(file("${path.module}/webhook_processing/src/package.json"))
   }
 }
@@ -19,7 +19,7 @@ data "null_data_source" "webhook_wait_for_lambda_exporter" {
 
 data "archive_file" "webhook_lambda" {
   output_path = "${path.module}/webhook_processing/lambda-bundle.zip"
-  source_dir  = "${data.null_data_source.webhook_wait_for_lambda_exporter.outputs["source_dir"]}"
+  source_dir  = data.null_data_source.webhook_wait_for_lambda_exporter.outputs["source_dir"]
   type        = "zip"
 }
 
@@ -34,8 +34,8 @@ resource "aws_lambda_function" "webhook_processing" {
   timeout          = 300
 
   vpc_config {
-    security_group_ids = [ var.WMGLambdaSecurityGroup ]
-    subnet_ids         = [ var.WMGPrivateLambdaSubnet1,  var.WMGPrivateLambdaSubnet2]
+    security_group_ids = [var.WMGLambdaSecurityGroup]
+    subnet_ids         = [var.WMGPrivateLambdaSubnet1, var.WMGPrivateLambdaSubnet2]
   }
 
   environment {
@@ -75,6 +75,6 @@ resource "aws_secretsmanager_secret" "capicreds" {
 }
 
 resource "aws_secretsmanager_secret_version" "cai_secret_credentials" {
- secret_id      = aws_secretsmanager_secret.capicreds.id
- secret_string  = "{\"CAPISecurityToken\":\"${var.CAPISecurityToken}\"}"
+  secret_id     = aws_secretsmanager_secret.capicreds.id
+  secret_string = "{\"CAPISecurityToken\":\"${var.CAPISecurityToken}\"}"
 }

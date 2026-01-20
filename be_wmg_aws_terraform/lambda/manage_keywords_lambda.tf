@@ -4,7 +4,7 @@ resource "null_resource" "manage_keywords_lambda_dependencies" {
   }
 
   triggers = {
-    index = sha256(file("${path.module}/manage_keywords/src/index.mjs"))
+    index   = sha256(file("${path.module}/manage_keywords/src/index.mjs"))
     package = sha256(file("${path.module}/manage_keywords/src/package.json"))
   }
 }
@@ -19,7 +19,7 @@ data "null_data_source" "manage_keywords_wait_for_lambda_exporter" {
 
 data "archive_file" "manage_keywords_lambda" {
   output_path = "${path.module}/manage_keywords/lambda-bundle.zip"
-  source_dir  = "${data.null_data_source.manage_keywords_wait_for_lambda_exporter.outputs["source_dir"]}"
+  source_dir  = data.null_data_source.manage_keywords_wait_for_lambda_exporter.outputs["source_dir"]
   type        = "zip"
 }
 
@@ -34,16 +34,16 @@ resource "aws_lambda_function" "manage_keywords" {
   timeout          = 300
 
   vpc_config {
-    security_group_ids = [ var.WMGLambdaSecurityGroup ]
-    subnet_ids         = [ var.WMGPrivateLambdaSubnet1,  var.WMGPrivateLambdaSubnet2]
+    security_group_ids = [var.WMGLambdaSecurityGroup]
+    subnet_ids         = [var.WMGPrivateLambdaSubnet1, var.WMGPrivateLambdaSubnet2]
   }
 
   environment {
     variables = {
-      DB_HOST = var.DB_HOST
-      DB_NAME = var.DB_NAME
+      DB_HOST       = var.DB_HOST
+      DB_NAME       = var.DB_NAME
       DB_SECRET_ARN = var.DB_SECRET_ARN
-      DB_USER = var.DB_USER
+      DB_USER       = var.DB_USER
     }
   }
 }

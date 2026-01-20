@@ -1,7 +1,7 @@
 data "aws_region" "current" {}
 
 resource "aws_api_gateway_rest_api" "example" {
-  name        = "${var.stack_name}-WMG-API-GATEWAY"
+  name = "${var.stack_name}-WMG-API-GATEWAY"
 }
 
 resource "aws_api_gateway_deployment" "example" {
@@ -21,7 +21,7 @@ resource "aws_api_gateway_deployment" "example" {
     "aws_api_gateway_integration.keyword_id_lambda_put",
   ]
 
-  rest_api_id = "${aws_api_gateway_rest_api.example.id}"
+  rest_api_id = aws_api_gateway_rest_api.example.id
   stage_name  = "prod"
 }
 
@@ -37,6 +37,6 @@ resource "aws_api_gateway_deployment" "wmg_webhook_processing_deployment" {
     "aws_api_gateway_integration.webhook_endpoint_get",
   ]
 
-  rest_api_id = "${aws_api_gateway_rest_api.wmg_webhook_processing.id}"
-  stage_name  = "${var.WebhookStageName}"
+  rest_api_id = aws_api_gateway_rest_api.wmg_webhook_processing.id
+  stage_name  = var.WebhookStageName
 }

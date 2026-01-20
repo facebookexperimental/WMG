@@ -17,6 +17,6 @@ resource "aws_sqs_queue" "wmg_dlq_webhook_processing_queue" {
 }
 
 resource "aws_sns_topic" "wmg_sns_topic_webhook" {
-  name = "SNSTopicForWABizNotifs"
+  name         = "SNSTopicForWABizNotifs"
   display_name = "${var.stack_name}-SNSTopicForWABizNotifs"
 }
