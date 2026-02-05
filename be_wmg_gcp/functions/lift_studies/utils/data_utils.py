@@ -1,4 +1,3 @@
-import json
 from io import StringIO
 
 import mysql.connector
