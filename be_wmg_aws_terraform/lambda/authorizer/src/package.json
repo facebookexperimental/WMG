@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.mjs",
   "dependencies": {
-    "aws-sdk": "^2.1433.0"
+    "@aws-sdk/client-secrets-manager": "^3.0.0"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"

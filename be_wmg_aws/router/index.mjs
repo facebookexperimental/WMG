@@ -3,7 +3,8 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
-import AWS from 'aws-sdk';
+import { SecretsManager } from '@aws-sdk/client-secrets-manager';
+import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
 import crypto from 'crypto';
 import fetch from 'node-fetch';
 import mysql from 'mysql';
@@ -16,7 +17,7 @@ const dbSecretArn = process.env.DB_SECRET_ARN;
 const db_name = process.env.DB_NAME;
 let dbPass;
 
-const sqs = new AWS.SQS();
+const sqs = new SQSClient({});
 export const lambdaHandler = async (event, context) => {
     let connection;
     try {
@@ -122,7 +123,7 @@ export const lambdaHandler = async (event, context) => {
                 MessageBody: JSON.stringify({...JSON.parse(event.body), business_number_id: businessNumberId }),
                 QueueUrl: queueUrl
             };
-            const sendMessageResponse = await sqs.sendMessage(params).promise();
+            const sendMessageResponse = await sqs.send(new SendMessageCommand(params));
 
             console.info("Successfully enqueued to queue. Message ID:", sendMessageResponse.MessageId);
         } else {
@@ -263,8 +264,8 @@ const createConnection = () => {
 const getDatabasePassword = async () => {
     try {
         console.info('Getting password');
-        const client = new AWS.SecretsManager();
-        const data = await client.getSecretValue({ SecretId: dbSecretArn }).promise();
+        const client = new SecretsManager();
+        const data = await client.getSecretValue({ SecretId: dbSecretArn });
         console.info('Parsing password');
         if ('SecretString' in data) {
             const secret = JSON.parse(data.SecretString);

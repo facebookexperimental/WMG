@@ -5,9 +5,9 @@
     "private": true,
     "main": "index.mjs",
     "dependencies": {
-      "aws-sdk": "^2.1433.0",
+      "@aws-sdk/client-secrets-manager": "^3.0.0",
       "mysql": "^2.18.1",
-      "axios": "^1.6.8"
+      "axios": "^1.15.0"
     },
     "scripts": {
       "test": "echo \"Error: no test specified\" && exit 1"

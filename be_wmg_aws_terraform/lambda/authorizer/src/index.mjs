@@ -3,7 +3,7 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
-import AWS from 'aws-sdk';
+import { SecretsManager } from '@aws-sdk/client-secrets-manager';
 
 const securityTokenSecretArn = process.env.SECURITY_TOKEN_ARN;
 
@@ -39,8 +39,8 @@ export const lambdaHandler = async (event) => {
 const getWMGSecurityToken = async () => {
   try {
       console.info('Getting WMGSecurityToken');
-      const client = new AWS.SecretsManager();
-      const data = await client.getSecretValue({ SecretId: securityTokenSecretArn }).promise();
+      const client = new SecretsManager();
+      const data = await client.getSecretValue({ SecretId: securityTokenSecretArn });
       console.info('Parsing WMGSecurityToken');
       if ('SecretString' in data) {
           const secret = JSON.parse(data.SecretString);

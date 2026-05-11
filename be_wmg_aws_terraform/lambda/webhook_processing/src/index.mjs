@@ -3,7 +3,7 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
-import AWS from 'aws-sdk';
+import { SecretsManager } from '@aws-sdk/client-secrets-manager';
 import mysql from 'mysql';
 import axios from 'axios';
 import { promisify } from 'util';
@@ -192,8 +192,8 @@ const createConnection = () => {
 const getDatabasePassword = async () => {
     try {
         console.info('Getting password');
-        const client = new AWS.SecretsManager();
-        const data = await client.getSecretValue({ SecretId: dbSecretArn }).promise();
+        const client = new SecretsManager();
+        const data = await client.getSecretValue({ SecretId: dbSecretArn });
         console.info('Parsing password');
         if ('SecretString' in data) {
             const secret = JSON.parse(data.SecretString);
@@ -212,8 +212,8 @@ const getDatabasePassword = async () => {
 const getCAPIToken = async () => {
     try {
         console.info('Getting CAPI token');
-        const client = new AWS.SecretsManager();
-        const data = await client.getSecretValue({ SecretId: capiTokenArn }).promise();
+        const client = new SecretsManager();
+        const data = await client.getSecretValue({ SecretId: capiTokenArn });
         console.info('Parsing token');
         if ('SecretString' in data) {
             const secret = JSON.parse(data.SecretString);
