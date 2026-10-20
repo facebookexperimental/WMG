@@ -1,3 +1,8 @@
+# Copyright (c) Meta Platforms, Inc. and affiliates.
+#
+# This source code is licensed under the MIT license found in the
+# LICENSE file in the root directory of this source tree.
+
 resource "aws_api_gateway_authorizer" "demo" {
   name           = "${var.stack_name}-authorizer"
   rest_api_id    = aws_api_gateway_rest_api.example.id

@@ -1,3 +1,8 @@
+# Copyright (c) Meta Platforms, Inc. and affiliates.
+#
+# This source code is licensed under the MIT license found in the
+# LICENSE file in the root directory of this source tree.
+
 resource "null_resource" "manage_keywords_lambda_dependencies" {
   provisioner "local-exec" {
     command = "cd ${path.module}/manage_keywords/src && npm install"
